@@ -42,8 +42,6 @@ static void addSeparatorToStackView(id stackView)
 
 void updateAppList(id stackView)
 {
-    printf("updateAppList\n");
-
     SEL arrangedSubviewsSel = SEL("arrangedSubviews");
     id subviews = ((id (*)(id, SEL))objc_msgSend)(stackView, arrangedSubviewsSel);
 

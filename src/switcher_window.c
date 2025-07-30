@@ -79,15 +79,12 @@ static void activateSelectedApp()
 {
     id selectedButton = nil;
     const char* actualText = NULL;
-    fprintf(stderr, "Activating app at index %lu\n", (unsigned long)selectedIndex);
 
     if (isInFavoritesList && favoriteButtons) {
-        fprintf(stderr, "In favorites list\n");
         NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
         if (selectedIndex >= favCount) return;
         selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
     } else if (!isInFavoritesList && appButtons) {
-        fprintf(stderr, "not in favorites list\n");
         NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
         NSUInteger appIndex = selectedIndex - totalFavorites;
         if (appIndex >= appCount) return;
@@ -95,11 +92,9 @@ static void activateSelectedApp()
     }
 
     if (!selectedButton) return;
-    fprintf(stderr, "Selected button: %p\n", selectedButton);
 
     id title = ((id (*)(id, SEL))objc_msgSend)(selectedButton, sel_registerName("title"));
     const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
-    fprintf(stderr, "Button title: %s\n", ctitle);
     
     // Handle different prefixes: "> ", "  ", "★ ", "* "
     actualText = ctitle;
@@ -108,19 +103,16 @@ static void activateSelectedApp()
     if (strncmp(actualText, "> ", 2) == 0 || strncmp(actualText, "  ", 2) == 0) {
         actualText += 2;
     }
-    fprintf(stderr, "Actual text after selection indicator: %s\n", actualText);
     
     // Skip favorite star
     if (strncmp(actualText, "★ ", 3) == 0) {
         actualText += 4;
     }
-    fprintf(stderr, "Actual text after favorite star: %s\n", actualText);
     
     // Skip active indicator
     if (strncmp(actualText, "* ", 4) == 0) {
         actualText += 6;
     }
-    fprintf(stderr, "Final app name to activate: %s\n", actualText);
 
     Class NSWorkspace = objc_getClass("NSWorkspace");
     id workspace = ((id (*)(Class, SEL))objc_msgSend)(NSWorkspace, sel_registerName("sharedWorkspace"));
@@ -138,7 +130,6 @@ static void activateSelectedApp()
         id name = ((id (*)(id, SEL))objc_msgSend)(app, localizedNameSel);
         const char* appName = ((const char* (*)(id, SEL))objc_msgSend)(name, UTF8StringSel);
 
-        fprintf(stderr, "Checking app: %s\n", appName);
         if (strcmp(appName, actualText) == 0) {
             ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateWithOptionsSel, 1);
             break;
@@ -169,7 +160,6 @@ static void resizeWindowToFitStack()
 
 void toggleFavoriteForSelectedApp()
 {
-    fprintf(stderr, "Toggling favorite for selected app at index %lu\n", (unsigned long)selectedIndex);
     if (!appButtons && !favoriteButtons) return;
 
     const char* appName = NULL;
