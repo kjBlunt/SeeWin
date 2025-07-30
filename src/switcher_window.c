@@ -16,47 +16,86 @@ id window = nil;
 static id stackViewRef = nil;
 NSUInteger selectedIndex = 0;
 id appButtons = nil;
+id favoriteButtons = nil;
+NSUInteger totalFavorites = 0;
+BOOL isInFavoritesList = NO;
 
 void updateSelectionHighlight()
 {
-    if (!appButtons) return;
+    if (!appButtons && !favoriteButtons) return;
 
-    NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
-    for (NSUInteger i = 0; i < count; i++) {
-        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), i);
+    // Update favorites buttons
+    if (favoriteButtons) {
+        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
+        for (NSUInteger i = 0; i < favCount; i++) {
+            id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), i);
+            
+            id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+            const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
+            if (!baseTitle) continue;
 
-        id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+            const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
+                ? baseTitle + 2
+                : baseTitle;
 
-        const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
-        if (!baseTitle) continue;
+            char finalLabel[256];
+            BOOL isSelected = (isInFavoritesList && i == selectedIndex);
+            snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
 
-        const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
-            ? baseTitle + 2
-            : baseTitle;
+            id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
+                objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
+            );
+            ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
+        }
+    }
 
-        char finalLabel[256];
-        snprintf(finalLabel, sizeof(finalLabel), (i == selectedIndex) ? "> %s" : "  %s", actualText);
+    // Update app buttons
+    if (appButtons) {
+        NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        for (NSUInteger i = 0; i < appCount; i++) {
+            id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), i);
 
-        id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-            objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
-        );
-        ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
+            id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+            const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
+            if (!baseTitle) continue;
+
+            const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
+                ? baseTitle + 2
+                : baseTitle;
+
+            char finalLabel[256];
+            BOOL isSelected = (!isInFavoritesList && i == (selectedIndex - totalFavorites));
+            snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
+
+            id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
+                objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
+            );
+            ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
+        }
     }
 }
 
 static void activateSelectedApp()
 {
-    if (!appButtons) return;
+    id selectedButton = nil;
+    const char* actualText = NULL;
 
-    NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
-    if (selectedIndex >= count) return;
+    if (isInFavoritesList && favoriteButtons) {
+        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
+        if (selectedIndex >= favCount) return;
+        selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
+    } else if (!isInFavoritesList && appButtons) {
+        NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        NSUInteger appIndex = selectedIndex - totalFavorites;
+        if (appIndex >= appCount) return;
+        selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), appIndex);
+    }
 
-    id selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), selectedIndex);
+    if (!selectedButton) return;
 
     id title = ((id (*)(id, SEL))objc_msgSend)(selectedButton, sel_registerName("title"));
     const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
-
-    const char* actualText = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+    actualText = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
 
     Class NSWorkspace = objc_getClass("NSWorkspace");
     id workspace = ((id (*)(Class, SEL))objc_msgSend)(NSWorkspace, sel_registerName("sharedWorkspace"));
@@ -75,7 +114,7 @@ static void activateSelectedApp()
         const char* appName = ((const char* (*)(id, SEL))objc_msgSend)(name, UTF8StringSel);
 
         if (strcmp(appName, actualText) == 0) {
-            ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateWithOptionsSel, 1); // NSApplicationActivateIgnoringOtherApps = 1
+            ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateWithOptionsSel, 1);
             break;
         }
     }
@@ -84,24 +123,85 @@ static void activateSelectedApp()
     ((void (*)(id, SEL, id))objc_msgSend)(window, orderOutSel, window);
 }
 
-static void customKeyDown(id self, SEL _cmd, id event)
+void toggleFavoriteForSelectedApp()
 {
-    fprintf(stderr, "appButtons = %p\n", appButtons);
+    if (!appButtons && !favoriteButtons) return;
 
-    if (appButtons) {
-        SEL countSel = sel_registerName("count");
-        NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, countSel);
-        fprintf(stderr, "appButtons count = %lu\n", (unsigned long)count);
+    const char* appName = NULL;
+    id targetApp = nil;
+
+    // Get the selected app name and object
+    if (isInFavoritesList && favoriteButtons) {
+        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
+        if (selectedIndex >= favCount) return;
+        
+        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
+        id title = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+        const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
+        appName = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+        targetApp = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("representedObject"));
+        
+        // Remove from favorites
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("removeObjectAtIndex:"), selectedIndex);
+    } else if (!isInFavoritesList && appButtons) {
+        NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        NSUInteger appIndex = selectedIndex - totalFavorites;
+        if (appIndex >= appCount) return;
+
+        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), appIndex);
+        id title = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+        const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
+        appName = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+        targetApp = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("representedObject"));
+
+        // Add to favorites
+        if (!favoriteButtons) {
+            favoriteButtons = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSMutableArray"), sel_registerName("alloc"));
+            favoriteButtons = ((id (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("init"));
+        }
+        
+        // Create a copy of the button for favorites
+        Class NSButton = objc_getClass("NSButton");
+        id favButton = ((id (*)(id, SEL))objc_msgSend)(
+            ((id (*)(Class, SEL))objc_msgSend)(NSButton, sel_registerName("alloc")),
+            sel_registerName("init")
+        );
+        
+        // Configure the favorite button similar to original
+        SEL setButtonTypeSel = sel_registerName("setButtonType:");
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setButtonTypeSel, 0);
+        
+        SEL setBorderedSel = sel_registerName("setBordered:");
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(favButton, setBorderedSel, NO);
+        
+        SEL setBezelStyleSel = sel_registerName("setBezelStyle:");
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setBezelStyleSel, 15);
+        
+        SEL setFocusRingTypeSel = sel_registerName("setFocusRingType:");
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setFocusRingTypeSel, 1);
+        
+        // Set title with ★ prefix for favorites
+        char favLabel[256];
+        snprintf(favLabel, sizeof(favLabel), "★ %s", appName);
+        id favTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
+            objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), favLabel
+        );
+        ((void (*)(id, SEL, id))objc_msgSend)(favButton, sel_registerName("setTitle:"), favTitle);
+        
+        SEL setRepresentedObjectSel = sel_registerName("setRepresentedObject:");
+        ((void (*)(id, SEL, id))objc_msgSend)(favButton, setRepresentedObjectSel, targetApp);
+        
+        ((void (*)(id, SEL, id))objc_msgSend)(favoriteButtons, sel_registerName("addObject:"), favButton);
     }
 
+    // Refresh the app list to reflect changes
+    updateAppList(stackViewRef);
+}
+
+static void customKeyDown(id self, SEL _cmd, id event)
+{
     SEL charactersIgnoringModifiersSel = sel_registerName("charactersIgnoringModifiers");
     id chars = ((id (*)(id, SEL))objc_msgSend)(event, charactersIgnoringModifiersSel);
-
-    SEL isEqualToStringSel = sel_registerName("isEqualToString:");
-    id qString = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-        objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), "q"
-    );
-
     const char* cstr = ((const char* (*)(id, SEL))objc_msgSend)(chars, sel_registerName("UTF8String"));
     if (!cstr) return;
 
@@ -111,33 +211,47 @@ static void customKeyDown(id self, SEL _cmd, id event)
         return;
     }
 
+    // Toggle favorite with 'f' key
+    if (strcmp(cstr, "f") == 0) {
+        toggleFavoriteForSelectedApp();
+        return;
+    }
 
-    if (appButtons != nil) {
-        NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
-        if (cstr[1] == '\0' && cstr[0] >= '0' && cstr[0] <= '9') {
-            NSUInteger index = (cstr[0] == '0') ? 9 : (cstr[0] - '1');
+    NSUInteger totalItems = totalFavorites;
+    if (appButtons) {
+        totalItems += ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+    }
+
+    // Handle number keys (0-9)
+    if (cstr[1] == '\0' && cstr[0] >= '0' && cstr[0] <= '9') {
+        NSUInteger index = (cstr[0] == '0') ? 9 : (cstr[0] - '1');
+        if (index < totalItems) {
             selectedIndex = index;
+            isInFavoritesList = (index < totalFavorites);
             updateSelectionHighlight();
             activateSelectedApp();
-            return;
         }
+        return;
+    }
 
-        if (strcmp(cstr, "j") == 0) {
-            if (selectedIndex + 1 < count) {
-                selectedIndex++;
-                updateSelectionHighlight();
-            }
-            return;
-        } else if (strcmp(cstr, "k") == 0) {
-            if (selectedIndex > 0) {
-                selectedIndex--;
-                updateSelectionHighlight();
-            }
-            return;
-        } else if (strcmp(cstr, "\r") == 0 || strcmp(cstr, "\n") == 0) {
-          activateSelectedApp();
-          return;
+    // Handle navigation keys
+    if (strcmp(cstr, "j") == 0) {
+        if (selectedIndex + 1 < totalItems) {
+            selectedIndex++;
+            isInFavoritesList = (selectedIndex < totalFavorites);
+            updateSelectionHighlight();
         }
+        return;
+    } else if (strcmp(cstr, "k") == 0) {
+        if (selectedIndex > 0) {
+            selectedIndex--;
+            isInFavoritesList = (selectedIndex < totalFavorites);
+            updateSelectionHighlight();
+        }
+        return;
+    } else if (strcmp(cstr, "\r") == 0 || strcmp(cstr, "\n") == 0) {
+        activateSelectedApp();
+        return;
     }
 
     struct objc_super superInfo = {
@@ -175,6 +289,10 @@ static void toggleVisibility(id self, SEL _cmd)
     } else {
         updateAppList(stackViewRef);
         resizeWindowToFitStack();
+
+        // Reset selection to start in favorites if they exist
+        selectedIndex = 0;
+        isInFavoritesList = (totalFavorites > 0);
 
         SEL makeKeyAndOrderFrontSel = sel_registerName("makeKeyAndOrderFront:");
         ((void (*)(id, SEL, id))objc_msgSend)(self, makeKeyAndOrderFrontSel, self);

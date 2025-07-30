@@ -7,11 +7,38 @@
 #include <assert.h>
 #include <objc/NSObjCRuntime.h>
 #include <objc/objc.h>
+#include <CoreFoundation/CFCGTypes.h>
 
 #define SEL(NAME) sel_registerName(NAME)
 
 extern id appButtons;
+extern id favoriteButtons;
 extern NSUInteger selectedIndex;
+extern NSUInteger totalFavorites;
+
+static void addSeparatorToStackView(id stackView)
+{
+    Class NSBox = objc_getClass("NSBox");
+    id separator = ((id (*)(Class, SEL))objc_msgSend)(NSBox, sel_registerName("alloc"));
+    separator = ((id (*)(id, SEL))objc_msgSend)(separator, sel_registerName("init"));
+    
+    // Configure as horizontal line separator
+    SEL setBoxTypeSel = sel_registerName("setBoxType:");
+    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(separator, setBoxTypeSel, 2); // NSBoxSeparator
+    
+    // Set height constraint
+    SEL widthAnchorSel = sel_registerName("widthAnchor");
+    SEL heightAnchorSel = sel_registerName("heightAnchor");
+    SEL constraintEqualToConstantSel = sel_registerName("constraintEqualToConstant:");
+    SEL setActiveSel = sel_registerName("setActive:");
+    
+    id heightAnchor = ((id (*)(id, SEL))objc_msgSend)(separator, heightAnchorSel);
+    id heightConstraint = ((id (*)(id, SEL, CGFloat))objc_msgSend)(heightAnchor, constraintEqualToConstantSel, 1.0);
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(heightConstraint, setActiveSel, YES);
+    
+    SEL addArrangedSubviewSel = SEL("addArrangedSubview:");
+    ((void (*)(id, SEL, id))objc_msgSend)(stackView, addArrangedSubviewSel, separator);
+}
 
 void updateAppList(id stackView)
 {
@@ -32,10 +59,34 @@ void updateAppList(id stackView)
         ((void (*)(id, SEL))objc_msgSend)(subview, removeFromSuperviewSel);
     }
 
-    Class NSMutableArray = objc_getClass("NSMutableArray");
-    appButtons = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSMutableArray"), sel_registerName("alloc"));
-    appButtons = ((id (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("init"));
+    // Initialize appButtons array
+    if (!appButtons) {
+        appButtons = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSMutableArray"), sel_registerName("alloc"));
+        appButtons = ((id (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("init"));
+    } else {
+        ((void (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("removeAllObjects"));
+    }
+
     selectedIndex = 0;
+    totalFavorites = 0;
+
+    // Add favorites first if they exist
+    if (favoriteButtons) {
+        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, countSel);
+        totalFavorites = favCount;
+        
+        if (favCount > 0) {
+            // Add favorites section
+            for (NSUInteger i = 0; i < favCount; ++i) {
+                id favButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, objectAtIndexSel, i);
+                SEL addArrangedSubviewSel = SEL("addArrangedSubview:");
+                ((void (*)(id, SEL, id))objc_msgSend)(stackView, addArrangedSubviewSel, favButton);
+            }
+            
+            // Add separator between favorites and regular apps
+            addSeparatorToStackView(stackView);
+        }
+    }
 
     Class NSWorkspace = objc_getClass("NSWorkspace");
     id workspace = ((id (*)(Class, SEL))objc_msgSend)(NSWorkspace, SEL("sharedWorkspace"));
@@ -68,8 +119,34 @@ void updateAppList(id stackView)
         id name = ((id (*)(id, SEL))objc_msgSend)(app, nameSel);
         if (!name) continue;
 
-        BOOL isActive = ((BOOL (*)(id, SEL))objc_msgSend)(app, isActiveSel);
         const char* cname = ((const char* (*)(id, SEL))objc_msgSend)(name, SEL("UTF8String"));
+        
+        // Check if this app is already in favorites
+        BOOL isInFavorites = NO;
+        if (favoriteButtons) {
+            NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, countSel);
+            for (NSUInteger j = 0; j < favCount; ++j) {
+                id favButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, objectAtIndexSel, j);
+                id favTitle = ((id (*)(id, SEL))objc_msgSend)(favButton, sel_registerName("title"));
+                const char* favTitleStr = ((const char* (*)(id, SEL))objc_msgSend)(favTitle, SEL("UTF8String"));
+                
+                // Skip the "★ " prefix when comparing
+                const char* favAppName = favTitleStr;
+                if (strncmp(favTitleStr, "★ ", 3) == 0) {
+                    favAppName = favTitleStr + 3;
+                }
+                
+                if (strcmp(cname, favAppName) == 0) {
+                    isInFavorites = YES;
+                    break;
+                }
+            }
+        }
+        
+        // Skip apps that are already in favorites
+        if (isInFavorites) continue;
+
+        BOOL isActive = ((BOOL (*)(id, SEL))objc_msgSend)(app, isActiveSel);
 
         char label[256];
         snprintf(label, sizeof(label), isActive ? "[*] %s" : "%s", cname);

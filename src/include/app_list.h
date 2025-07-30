@@ -3,6 +3,6 @@
 
 #include <objc/objc.h>
 
-void updateAppList(id textView);
+void updateAppList(id stackView);
 
 #endif
