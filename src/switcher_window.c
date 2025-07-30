@@ -79,12 +79,15 @@ static void activateSelectedApp()
 {
     id selectedButton = nil;
     const char* actualText = NULL;
+    fprintf(stderr, "Activating app at index %lu\n", (unsigned long)selectedIndex);
 
     if (isInFavoritesList && favoriteButtons) {
+        fprintf(stderr, "In favorites list\n");
         NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
         if (selectedIndex >= favCount) return;
         selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
     } else if (!isInFavoritesList && appButtons) {
+        fprintf(stderr, "not in favorites list\n");
         NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
         NSUInteger appIndex = selectedIndex - totalFavorites;
         if (appIndex >= appCount) return;
@@ -92,10 +95,32 @@ static void activateSelectedApp()
     }
 
     if (!selectedButton) return;
+    fprintf(stderr, "Selected button: %p\n", selectedButton);
 
     id title = ((id (*)(id, SEL))objc_msgSend)(selectedButton, sel_registerName("title"));
     const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
-    actualText = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+    fprintf(stderr, "Button title: %s\n", ctitle);
+    
+    // Handle different prefixes: "> ", "  ", "★ ", "* "
+    actualText = ctitle;
+    
+    // Skip selection indicator
+    if (strncmp(actualText, "> ", 2) == 0 || strncmp(actualText, "  ", 2) == 0) {
+        actualText += 2;
+    }
+    fprintf(stderr, "Actual text after selection indicator: %s\n", actualText);
+    
+    // Skip favorite star
+    if (strncmp(actualText, "★ ", 3) == 0) {
+        actualText += 4;
+    }
+    fprintf(stderr, "Actual text after favorite star: %s\n", actualText);
+    
+    // Skip active indicator
+    if (strncmp(actualText, "* ", 4) == 0) {
+        actualText += 6;
+    }
+    fprintf(stderr, "Final app name to activate: %s\n", actualText);
 
     Class NSWorkspace = objc_getClass("NSWorkspace");
     id workspace = ((id (*)(Class, SEL))objc_msgSend)(NSWorkspace, sel_registerName("sharedWorkspace"));
@@ -113,6 +138,7 @@ static void activateSelectedApp()
         id name = ((id (*)(id, SEL))objc_msgSend)(app, localizedNameSel);
         const char* appName = ((const char* (*)(id, SEL))objc_msgSend)(name, UTF8StringSel);
 
+        fprintf(stderr, "Checking app: %s\n", appName);
         if (strcmp(appName, actualText) == 0) {
             ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateWithOptionsSel, 1);
             break;
@@ -123,14 +149,32 @@ static void activateSelectedApp()
     ((void (*)(id, SEL, id))objc_msgSend)(window, orderOutSel, window);
 }
 
+static void resizeWindowToFitStack()
+{
+    SEL layoutSel = sel_registerName("layoutSubtreeIfNeeded");
+    ((void (*)(id, SEL))objc_msgSend)(stackViewRef, layoutSel);
+
+    SEL fittingSizeSel = sel_registerName("fittingSize");
+    NSSize fittingSize = ((NSSize (*)(id, SEL))objc_msgSend)(stackViewRef, fittingSizeSel);
+
+    fittingSize.width += 20;
+    fittingSize.height += 20;
+
+    SEL setContentSizeSel = sel_registerName("setContentSize:");
+    ((void (*)(id, SEL, NSSize))objc_msgSend)(window, setContentSizeSel, fittingSize);
+
+    ((void (*)(id, SEL))objc_msgSend)(window, sel_registerName("center"));
+}
+
+
 void toggleFavoriteForSelectedApp()
 {
+    fprintf(stderr, "Toggling favorite for selected app at index %lu\n", (unsigned long)selectedIndex);
     if (!appButtons && !favoriteButtons) return;
 
     const char* appName = NULL;
     id targetApp = nil;
 
-    // Get the selected app name and object
     if (isInFavoritesList && favoriteButtons) {
         NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
         if (selectedIndex >= favCount) return;
@@ -138,10 +182,19 @@ void toggleFavoriteForSelectedApp()
         id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
         id title = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
         const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
-        appName = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+        
+        // Parse title - handle selection indicator and star prefix
+        appName = ctitle;
+        if (strncmp(appName, "> ", 2) == 0 || strncmp(appName, "  ", 2) == 0) {
+            appName += 2;
+        }
+        if (strncmp(appName, "★ ", 3) == 0) {
+            appName += 3;
+        }
+
+        
         targetApp = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("representedObject"));
         
-        // Remove from favorites
         ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("removeObjectAtIndex:"), selectedIndex);
     } else if (!isInFavoritesList && appButtons) {
         NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
@@ -151,7 +204,16 @@ void toggleFavoriteForSelectedApp()
         id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), appIndex);
         id title = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
         const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
-        appName = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+        
+        // Parse title - handle selection indicator and active indicator
+        appName = ctitle;
+        if (strncmp(appName, "> ", 2) == 0 || strncmp(appName, "  ", 2) == 0) {
+            appName += 2;
+        }
+        if (strncmp(appName, "* ", 4) == 0) {
+            appName += 4;
+        }
+        
         targetApp = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("representedObject"));
 
         // Add to favorites
@@ -160,14 +222,12 @@ void toggleFavoriteForSelectedApp()
             favoriteButtons = ((id (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("init"));
         }
         
-        // Create a copy of the button for favorites
         Class NSButton = objc_getClass("NSButton");
         id favButton = ((id (*)(id, SEL))objc_msgSend)(
             ((id (*)(Class, SEL))objc_msgSend)(NSButton, sel_registerName("alloc")),
             sel_registerName("init")
         );
         
-        // Configure the favorite button similar to original
         SEL setButtonTypeSel = sel_registerName("setButtonType:");
         ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setButtonTypeSel, 0);
         
@@ -194,8 +254,8 @@ void toggleFavoriteForSelectedApp()
         ((void (*)(id, SEL, id))objc_msgSend)(favoriteButtons, sel_registerName("addObject:"), favButton);
     }
 
-    // Refresh the app list to reflect changes
     updateAppList(stackViewRef);
+    resizeWindowToFitStack();
 }
 
 static void customKeyDown(id self, SEL _cmd, id event)
@@ -211,7 +271,6 @@ static void customKeyDown(id self, SEL _cmd, id event)
         return;
     }
 
-    // Toggle favorite with 'f' key
     if (strcmp(cstr, "f") == 0) {
         toggleFavoriteForSelectedApp();
         return;
@@ -261,23 +320,6 @@ static void customKeyDown(id self, SEL _cmd, id event)
     ((void (*)(struct objc_super*, SEL, id))objc_msgSendSuper)(&superInfo, _cmd, event);
 }
 
-static void resizeWindowToFitStack()
-{
-    SEL layoutSel = sel_registerName("layoutSubtreeIfNeeded");
-    ((void (*)(id, SEL))objc_msgSend)(stackViewRef, layoutSel);
-
-    SEL fittingSizeSel = sel_registerName("fittingSize");
-    NSSize fittingSize = ((NSSize (*)(id, SEL))objc_msgSend)(stackViewRef, fittingSizeSel);
-
-    fittingSize.width += 20;
-    fittingSize.height += 20;
-
-    SEL setContentSizeSel = sel_registerName("setContentSize:");
-    ((void (*)(id, SEL, NSSize))objc_msgSend)(window, setContentSizeSel, fittingSize);
-
-    ((void (*)(id, SEL))objc_msgSend)(window, sel_registerName("center"));
-}
-
 static void toggleVisibility(id self, SEL _cmd)
 {
     SEL isVisibleSel = sel_registerName("isVisible");
@@ -290,7 +332,6 @@ static void toggleVisibility(id self, SEL _cmd)
         updateAppList(stackViewRef);
         resizeWindowToFitStack();
 
-        // Reset selection to start in favorites if they exist
         selectedIndex = 0;
         isInFavoritesList = (totalFavorites > 0);
 
@@ -347,7 +388,6 @@ void createSwitcherWindow(id windowDelegate)
     // Set window level above normal windows
     ((void (*)(id, SEL, NSInteger))objc_msgSend)(window, sel_registerName("setLevel:"), 3); // NSStatusWindowLevel
 
-    // Disable shadow if desired
     ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setHasShadow:"), NO);
 
     SEL centerSel = sel_registerName("center");
@@ -371,15 +411,12 @@ void createSwitcherWindow(id windowDelegate)
     id blurView = ((id (*)(Class, SEL))objc_msgSend)(NSVisualEffectView, sel_registerName("alloc"));
     blurView = ((id (*)(id, SEL))objc_msgSend)(blurView, sel_registerName("init"));
 
-    // Configure the blur view
     ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setMaterial:"), 0); // NSVisualEffectMaterialAppearanceBased
     ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setBlendingMode:"), 0); // BehindWindow
     ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setState:"), 1); // FollowsWindowActiveState
 
-    // Set the blurView as the contentView
     ((void (*)(id, SEL, id))objc_msgSend)(window, sel_registerName("setContentView:"), blurView);
 
-    // Optional: round corners
     ((void (*)(id, SEL, BOOL))objc_msgSend)(blurView, sel_registerName("setWantsLayer:"), YES);
     id layer = ((id (*)(id, SEL))objc_msgSend)(blurView, sel_registerName("layer"));
     ((void (*)(id, SEL, CGFloat))objc_msgSend)(layer, sel_registerName("setCornerRadius:"), 12.0);
@@ -430,7 +467,7 @@ void createSwitcherWindow(id windowDelegate)
     SEL addSubviewSel = sel_registerName("addSubview:");
     ((void (*)(id, SEL, id))objc_msgSend)(paddedView, addSubviewSel, stackViewRef);
 
-    NSRect stackFrame = {{10, 10}, {380, 280}};  // Adjust margins here
+    NSRect stackFrame = {{10, 10}, {380, 280}};
     ((void (*)(id, SEL, NSRect))objc_msgSend)(stackViewRef, sel_registerName("setFrame:"), stackFrame);
     ((void (*)(id, SEL, id))objc_msgSend)(scrollView, sel_registerName("setDocumentView:"), paddedView);
 

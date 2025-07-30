@@ -59,7 +59,6 @@ void updateAppList(id stackView)
         ((void (*)(id, SEL))objc_msgSend)(subview, removeFromSuperviewSel);
     }
 
-    // Initialize appButtons array
     if (!appButtons) {
         appButtons = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSMutableArray"), sel_registerName("alloc"));
         appButtons = ((id (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("init"));
@@ -76,7 +75,6 @@ void updateAppList(id stackView)
         totalFavorites = favCount;
         
         if (favCount > 0) {
-            // Add favorites section
             for (NSUInteger i = 0; i < favCount; ++i) {
                 id favButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, objectAtIndexSel, i);
                 SEL addArrangedSubviewSel = SEL("addArrangedSubview:");
@@ -121,7 +119,6 @@ void updateAppList(id stackView)
 
         const char* cname = ((const char* (*)(id, SEL))objc_msgSend)(name, SEL("UTF8String"));
         
-        // Check if this app is already in favorites
         BOOL isInFavorites = NO;
         if (favoriteButtons) {
             NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, countSel);
@@ -130,7 +127,6 @@ void updateAppList(id stackView)
                 id favTitle = ((id (*)(id, SEL))objc_msgSend)(favButton, sel_registerName("title"));
                 const char* favTitleStr = ((const char* (*)(id, SEL))objc_msgSend)(favTitle, SEL("UTF8String"));
                 
-                // Skip the "★ " prefix when comparing
                 const char* favAppName = favTitleStr;
                 if (strncmp(favTitleStr, "★ ", 3) == 0) {
                     favAppName = favTitleStr + 3;
@@ -143,13 +139,12 @@ void updateAppList(id stackView)
             }
         }
         
-        // Skip apps that are already in favorites
         if (isInFavorites) continue;
 
         BOOL isActive = ((BOOL (*)(id, SEL))objc_msgSend)(app, isActiveSel);
 
         char label[256];
-        snprintf(label, sizeof(label), isActive ? "[*] %s" : "%s", cname);
+        snprintf(label, sizeof(label), isActive ? "* %s" : "%s", cname);
 
         id titleString = ((id (*)(Class, SEL, const char*))objc_msgSend)(NSString, stringWithUTF8Sel, label);
         id button = ((id (*)(id, SEL))objc_msgSend)(
