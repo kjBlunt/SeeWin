@@ -79,6 +79,19 @@ void updateAppList(id stackView)
             ((id (*)(Class, SEL))objc_msgSend)(NSButton, allocSel),
             initSel
         );
+
+        SEL setButtonTypeSel = sel_registerName("setButtonType:");
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(button, setButtonTypeSel, 0); // NSButtonTypeMomentaryChange = 0
+
+        SEL setBorderedSel = sel_registerName("setBordered:");
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(button, setBorderedSel, NO);
+
+        SEL setBezelStyleSel = sel_registerName("setBezelStyle:");
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(button, setBezelStyleSel, 15); // NSBezelStyleRegularSquare = 15
+
+        SEL setFocusRingTypeSel = sel_registerName("setFocusRingType:");
+        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(button, setFocusRingTypeSel, 1); // NSFocusRingTypeNone = 1
+
         ((void (*)(id, SEL, id))objc_msgSend)(button, setTitleSel, titleString);
         ((void (*)(id, SEL, id))objc_msgSend)(stackView, addArrangedSubviewSel, button);
 

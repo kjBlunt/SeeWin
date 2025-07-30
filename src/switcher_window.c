@@ -25,10 +25,63 @@ void updateSelectionHighlight()
     for (NSUInteger i = 0; i < count; i++) {
         id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), i);
 
-        SEL setFontSel = sel_registerName("setFont:");
-        id font = ((id (*)(Class, SEL, double))objc_msgSend)(objc_getClass("NSFont"), sel_registerName("systemFontOfSize:"), (i == selectedIndex) ? 14.0 : 12.0);
-        ((void (*)(id, SEL, id))objc_msgSend)(button, setFontSel, font);
+        id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+
+        const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
+        if (!baseTitle) continue;
+
+        const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
+            ? baseTitle + 2
+            : baseTitle;
+
+        char finalLabel[256];
+        snprintf(finalLabel, sizeof(finalLabel), (i == selectedIndex) ? "> %s" : "  %s", actualText);
+
+        id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
+            objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
+        );
+        ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
     }
+}
+
+static void activateSelectedApp()
+{
+    if (!appButtons) return;
+
+    NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+    if (selectedIndex >= count) return;
+
+    id selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), selectedIndex);
+
+    id title = ((id (*)(id, SEL))objc_msgSend)(selectedButton, sel_registerName("title"));
+    const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
+
+    const char* actualText = strchr(ctitle, '>') == ctitle ? ctitle + 2 : ctitle;
+
+    Class NSWorkspace = objc_getClass("NSWorkspace");
+    id workspace = ((id (*)(Class, SEL))objc_msgSend)(NSWorkspace, sel_registerName("sharedWorkspace"));
+    id apps = ((id (*)(id, SEL))objc_msgSend)(workspace, sel_registerName("runningApplications"));
+
+    SEL countSel = sel_registerName("count");
+    SEL objectAtIndexSel = sel_registerName("objectAtIndex:");
+    SEL localizedNameSel = sel_registerName("localizedName");
+    SEL activateWithOptionsSel = sel_registerName("activateWithOptions:");
+    SEL UTF8StringSel = sel_registerName("UTF8String");
+
+    NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(apps, countSel);
+    for (NSUInteger i = 0; i < appCount; ++i) {
+        id app = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(apps, objectAtIndexSel, i);
+        id name = ((id (*)(id, SEL))objc_msgSend)(app, localizedNameSel);
+        const char* appName = ((const char* (*)(id, SEL))objc_msgSend)(name, UTF8StringSel);
+
+        if (strcmp(appName, actualText) == 0) {
+            ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateWithOptionsSel, 1); // NSApplicationActivateIgnoringOtherApps = 1
+            break;
+        }
+    }
+
+    SEL orderOutSel = sel_registerName("orderOut:");
+    ((void (*)(id, SEL, id))objc_msgSend)(window, orderOutSel, window);
 }
 
 static void customKeyDown(id self, SEL _cmd, id event)
@@ -57,8 +110,18 @@ static void customKeyDown(id self, SEL _cmd, id event)
         ((void (*)(id, SEL, id))objc_msgSend)(self, orderOutSel, self);
         return;
     }
+
+
     if (appButtons != nil) {
         NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        if (cstr[1] == '\0' && cstr[0] >= '0' && cstr[0] <= '9') {
+            NSUInteger index = (cstr[0] == '0') ? 9 : (cstr[0] - '1');
+            selectedIndex = index;
+            updateSelectionHighlight();
+            activateSelectedApp();
+            return;
+        }
+
         if (strcmp(cstr, "j") == 0) {
             if (selectedIndex + 1 < count) {
                 selectedIndex++;
@@ -72,20 +135,8 @@ static void customKeyDown(id self, SEL _cmd, id event)
             }
             return;
         } else if (strcmp(cstr, "\r") == 0 || strcmp(cstr, "\n") == 0) {
-            id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), selectedIndex);
-            if (!button) return;
-
-            SEL representedObjectSel = sel_registerName("representedObject");
-            id app = ((id (*)(id, SEL))objc_msgSend)(button, representedObjectSel);
-
-            if (app) {
-                SEL activateSel = sel_registerName("activateWithOptions:");
-                ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateSel, 1); // 1 = NSApplicationActivateIgnoringOtherApps
-
-                SEL orderOutSel = sel_registerName("orderOut:");
-                ((void (*)(id, SEL, id))objc_msgSend)(window, orderOutSel, window);
-            }
-            return;
+          activateSelectedApp();
+          return;
         }
     }
 
