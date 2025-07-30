@@ -18,25 +18,27 @@ extern NSUInteger totalFavorites;
 
 static void addSeparatorToStackView(id stackView)
 {
-    Class NSBox = objc_getClass("NSBox");
-    id separator = ((id (*)(Class, SEL))objc_msgSend)(NSBox, sel_registerName("alloc"));
+    Class NSView = objc_getClass("NSView");
+    id separator = ((id (*)(Class, SEL))objc_msgSend)(NSView, sel_registerName("alloc"));
     separator = ((id (*)(id, SEL))objc_msgSend)(separator, sel_registerName("init"));
+
+    SEL setTranslatesAutoresizingMaskIntoConstraintsSel = sel_registerName("setTranslatesAutoresizingMaskIntoConstraints:");
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(separator, setTranslatesAutoresizingMaskIntoConstraintsSel, NO);
+
+    id heightAnchor = ((id (*)(id, SEL))objc_msgSend)(separator, sel_registerName("heightAnchor"));
+    id heightConstraint = ((id (*)(id, SEL, CGFloat))objc_msgSend)(heightAnchor, sel_registerName("constraintEqualToConstant:"), 1.0);
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(heightConstraint, sel_registerName("setActive:"), YES);
+
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(separator, sel_registerName("setWantsLayer:"), YES);
+    id layer = ((id (*)(id, SEL))objc_msgSend)(separator, sel_registerName("layer"));
     
-    // Configure as horizontal line separator
-    SEL setBoxTypeSel = sel_registerName("setBoxType:");
-    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(separator, setBoxTypeSel, 2); // NSBoxSeparator
-    
-    // Set height constraint
-    SEL widthAnchorSel = sel_registerName("widthAnchor");
-    SEL heightAnchorSel = sel_registerName("heightAnchor");
-    SEL constraintEqualToConstantSel = sel_registerName("constraintEqualToConstant:");
-    SEL setActiveSel = sel_registerName("setActive:");
-    
-    id heightAnchor = ((id (*)(id, SEL))objc_msgSend)(separator, heightAnchorSel);
-    id heightConstraint = ((id (*)(id, SEL, CGFloat))objc_msgSend)(heightAnchor, constraintEqualToConstantSel, 1.0);
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(heightConstraint, setActiveSel, YES);
-    
-    SEL addArrangedSubviewSel = SEL("addArrangedSubview:");
+    id grayColor = ((id (*)(Class, SEL))objc_msgSend)(
+        objc_getClass("NSColor"), sel_registerName("grayColor")
+    );
+    id cgColor = ((id (*)(id, SEL))objc_msgSend)(grayColor, sel_registerName("CGColor"));
+    ((void (*)(id, SEL, id))objc_msgSend)(layer, sel_registerName("setBackgroundColor:"), cgColor);
+
+    SEL addArrangedSubviewSel = sel_registerName("addArrangedSubview:");
     ((void (*)(id, SEL, id))objc_msgSend)(stackView, addArrangedSubviewSel, separator);
 }
 
@@ -124,6 +126,10 @@ void updateAppList(id stackView)
                 id favButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, objectAtIndexSel, j);
                 id favTitle = ((id (*)(id, SEL))objc_msgSend)(favButton, sel_registerName("title"));
                 const char* favTitleStr = ((const char* (*)(id, SEL))objc_msgSend)(favTitle, SEL("UTF8String"));
+                Class NSFont = objc_getClass("NSFont");
+                SEL monoSel = sel_registerName("monospacedSystemFontOfSize:weight:");
+                id font = ((id (*)(Class, SEL, CGFloat, NSInteger))objc_msgSend)(NSFont, monoSel, 15.0, 5);
+                ((void (*)(id, SEL, id))objc_msgSend)(favButton, sel_registerName("setFont:"), font);
                 
                 const char* favAppName = favTitleStr;
                 if (strncmp(favTitleStr, "★ ", 3) == 0) {
@@ -163,6 +169,10 @@ void updateAppList(id stackView)
         ((void (*)(id, SEL, NSUInteger))objc_msgSend)(button, setFocusRingTypeSel, 1); // NSFocusRingTypeNone = 1
 
         ((void (*)(id, SEL, id))objc_msgSend)(button, setTitleSel, titleString);
+        Class NSFont = objc_getClass("NSFont");
+        SEL monoSel = sel_registerName("monospacedSystemFontOfSize:weight:");
+        id font = ((id (*)(Class, SEL, CGFloat, NSInteger))objc_msgSend)(NSFont, monoSel, 15.0, 5);
+        ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setFont:"), font);
         ((void (*)(id, SEL, id))objc_msgSend)(stackView, addArrangedSubviewSel, button);
 
         // Add to appButtons array
