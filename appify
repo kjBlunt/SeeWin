@@ -55,8 +55,18 @@ else
     APPNAME=${name}
 fi
 
-if [ -a "${APPNAME}.app" ]; then
-    echo "# $PWD/${APPNAME}.app already exists, use -n <appname>!" >&2
+APPBUNDLE="${APPNAME}.app"
+if [[ "$APPNAME" == */* ]]; then
+    # If -n is a path like dist/SeeWinApp, split name and directory
+    APPDIR=$(dirname "$APPNAME")
+    APPBASENAME=$(basename "$APPNAME")
+    APPBUNDLE="${APPDIR}/${APPBASENAME}.app"
+else
+    APPBUNDLE="${APPNAME}.app"
+fi
+
+if [ -e "${APPBUNDLE}" ]; then
+    echo "# ${APPBUNDLE} already exists, use -n <appname>!" >&2
     exit 1
 fi
 
@@ -74,7 +84,7 @@ if [ ! -f ${CUSTICON} ]; then
 fi
 
 # define output path
-DIR="${APPNAME}.app/Contents"
+DIR="${APPBUNDLE}/Contents"
 mkdir -p $DIR/{MacOS,Resources} || (
     echo "error creating the App container" >&2
     exit 1
@@ -104,4 +114,4 @@ cat <<EOF >$DIR/Info.plist
 </plist>
 EOF
 
-echo "$PWD/${APPNAME}.app was created"
+echo "$PWD/${APPBUNDLE} was created"

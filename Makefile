@@ -1,34 +1,24 @@
-.PHONY: all clean dist
+.PHONY: all clean dist app
 
 DIST_DIR := dist
+SRC_DIR := src
+INCLUDE_DIR := $(SRC_DIR)/include
+SRC := $(wildcard $(SRC_DIR)/*.c)
+BIN := $(DIST_DIR)/SeeWin
 
-# Targets
-all: clean dist/main_c dist/main_objc_arc dist/main_objc_noarc dist/arc_app dist/noarc_app
+CFLAGS := -Wall -Wextra -std=c99 -I$(INCLUDE_DIR) -framework Cocoa -framework Carbon
 
-# Create dist dir
-dist:
+all: $(BIN)
+
+$(BIN): $(SRC) | $(DIST_DIR)
+	clang $(CFLAGS) -o $@ $^
+
+$(DIST_DIR):
 	mkdir -p $(DIST_DIR)
 
-# Rules
-dist/main.m: main.c | dist
-	cp $< $@
+app: $(BIN)
+	./appify -s $(BIN) -n $(DIST_DIR)/SeeWinApp
 
-dist/main_c: main.c | dist
-	clang -framework Cocoa -framework Carbon -o $@ $<
-
-dist/main_objc_arc: dist/main.m | dist
-	clang -framework Cocoa -framework Carbon -fobjc-arc -o $@ $<
-
-dist/main_objc_noarc: dist/main.m | dist
-	clang -framework Cocoa -framework Carbon -fno-objc-arc -o $@ $<
-
-dist/arc_app: dist/main_objc_arc | dist
-	./appify -s $< -n $(DIST_DIR)/SimpleCApp_arc
-
-dist/noarc_app: dist/main_objc_noarc | dist
-	./appify -s $< -n $(DIST_DIR)/SimpleCApp_noarc
-
-# Clean everything in dist
 clean:
 	rm -rf $(DIST_DIR)
 
