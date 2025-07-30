@@ -219,12 +219,18 @@ void createSwitcherWindow(id windowDelegate)
         windowAlloc, initSel, rect, styleMask, 2, NO
     );
 
-    // Set window properties
-    SEL setTitleSel = sel_registerName("setTitle:");
-    id title = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-        objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), "SeeWin"
-    );
-    ((void (*)(id, SEL, id))objc_msgSend)(window, setTitleSel, title);
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setOpaque:"), NO);
+    id clearColor = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSColor"), sel_registerName("clearColor"));
+    ((void (*)(id, SEL, id))objc_msgSend)(window, sel_registerName("setBackgroundColor:"), clearColor);
+
+    ((void (*)(id, SEL, NSInteger))objc_msgSend)(window, sel_registerName("setTitleVisibility:"), 1); // NSWindowTitleHidden
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setTitlebarAppearsTransparent:"), YES);
+
+    // Set window level above normal windows
+    ((void (*)(id, SEL, NSInteger))objc_msgSend)(window, sel_registerName("setLevel:"), 3); // NSStatusWindowLevel
+
+    // Disable shadow if desired
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setHasShadow:"), NO);
 
     SEL centerSel = sel_registerName("center");
     ((void (*)(id, SEL))objc_msgSend)(window, centerSel);
@@ -241,6 +247,25 @@ void createSwitcherWindow(id windowDelegate)
 
     SEL contentViewSel = sel_registerName("contentView");
     id contentView = ((id (*)(id, SEL))objc_msgSend)(window, contentViewSel);
+
+    // Create NSVisualEffectView for blur
+    Class NSVisualEffectView = objc_getClass("NSVisualEffectView");
+    id blurView = ((id (*)(Class, SEL))objc_msgSend)(NSVisualEffectView, sel_registerName("alloc"));
+    blurView = ((id (*)(id, SEL))objc_msgSend)(blurView, sel_registerName("init"));
+
+    // Configure the blur view
+    ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setMaterial:"), 0); // NSVisualEffectMaterialAppearanceBased
+    ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setBlendingMode:"), 0); // BehindWindow
+    ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setState:"), 1); // FollowsWindowActiveState
+
+    // Set the blurView as the contentView
+    ((void (*)(id, SEL, id))objc_msgSend)(window, sel_registerName("setContentView:"), blurView);
+
+    // Optional: round corners
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(blurView, sel_registerName("setWantsLayer:"), YES);
+    id layer = ((id (*)(id, SEL))objc_msgSend)(blurView, sel_registerName("layer"));
+    ((void (*)(id, SEL, CGFloat))objc_msgSend)(layer, sel_registerName("setCornerRadius:"), 12.0);
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(layer, sel_registerName("setMasksToBounds:"), YES);
 
     NSRect scrollFrame = {{0, 0}, {400, 300}};
     NSRect textFrame = {{0, 0}, {380, 300}};
@@ -291,7 +316,7 @@ void createSwitcherWindow(id windowDelegate)
     ((void (*)(id, SEL, NSRect))objc_msgSend)(stackViewRef, sel_registerName("setFrame:"), stackFrame);
     ((void (*)(id, SEL, id))objc_msgSend)(scrollView, sel_registerName("setDocumentView:"), paddedView);
 
-    ((void (*)(id, SEL, id))objc_msgSend)(contentView, sel_registerName("addSubview:"), scrollView);
+    ((void (*)(id, SEL, id))objc_msgSend)(blurView, sel_registerName("addSubview:"), scrollView);
 }
 
 id getSwitcherStackView(void)
