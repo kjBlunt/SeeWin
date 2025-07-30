@@ -20,59 +20,41 @@ id favoriteButtons = nil;
 NSUInteger totalFavorites = 0;
 BOOL isInFavoritesList = NO;
 
+static void updateButtonTitlesForList(id buttons, BOOL isActiveList, NSUInteger selectedOffset) {
+    if (!buttons) return;
+
+    NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(buttons, sel_registerName("count"));
+
+    for (NSUInteger i = 0; i < count; i++) {
+        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(buttons, sel_registerName("objectAtIndex:"), i);
+        id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
+        const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
+        if (!baseTitle) continue;
+
+        // Strip leading "> " or "  " from current title
+        const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
+            ? baseTitle + 2
+            : baseTitle;
+
+        BOOL isSelected = isActiveList && (i == selectedOffset);
+
+        char finalLabel[256];
+        snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
+
+        id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
+            objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
+        );
+        ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
+    }
+}
+
+
 void updateSelectionHighlight()
 {
     if (!appButtons && !favoriteButtons) return;
 
-    // Update favorites buttons
-    if (favoriteButtons) {
-        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
-        for (NSUInteger i = 0; i < favCount; i++) {
-            id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), i);
-            
-            id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
-            const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
-            if (!baseTitle) continue;
-
-            const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
-                ? baseTitle + 2
-                : baseTitle;
-
-            char finalLabel[256];
-            BOOL isSelected = (isInFavoritesList && i == selectedIndex);
-            snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
-
-            id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-                objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
-            );
-            ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
-        }
-    }
-
-    // Update app buttons
-    if (appButtons) {
-        NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
-        for (NSUInteger i = 0; i < appCount; i++) {
-            id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), i);
-
-            id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
-            const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
-            if (!baseTitle) continue;
-
-            const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
-                ? baseTitle + 2
-                : baseTitle;
-
-            char finalLabel[256];
-            BOOL isSelected = (!isInFavoritesList && i == (selectedIndex - totalFavorites));
-            snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
-
-            id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-                objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
-            );
-            ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
-        }
-    }
+    updateButtonTitlesForList(favoriteButtons, isInFavoritesList, selectedIndex);
+    updateButtonTitlesForList(appButtons, !isInFavoritesList, selectedIndex - totalFavorites);
 }
 
 static void activateSelectedApp()
