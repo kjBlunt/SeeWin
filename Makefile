@@ -1,4 +1,4 @@
-.PHONY: all clean dist app
+.PHONY: all clean dist app install uninstall
 
 DIST_DIR := dist
 SRC_DIR := src
@@ -7,6 +7,10 @@ SRC := $(wildcard $(SRC_DIR)/*.c)
 BIN := $(DIST_DIR)/SeeWin
 
 CFLAGS := -Wall -Wextra -std=c99 -I$(INCLUDE_DIR) -framework Cocoa -framework Carbon
+
+PREFIX ?= /usr/local
+BINDIR := $(PREFIX)/bin
+INSTALL_NAME := SeeWin
 
 all: $(BIN)
 
@@ -18,6 +22,13 @@ $(DIST_DIR):
 
 app: $(BIN)
 	./appify -s $(BIN) -n $(DIST_DIR)/SeeWinApp
+
+install: $(BIN)
+	install -d $(BINDIR)
+	install -m 755 $(BIN) $(BINDIR)/$(INSTALL_NAME)
+
+uninstall:
+	rm -f $(BINDIR)/$(INSTALL_NAME)
 
 clean:
 	rm -rf $(DIST_DIR)
