@@ -39,10 +39,6 @@ $(BIN): $(SRC) | $(DIST_DIR)
 $(DIST_DIR):
 	$(Q)mkdir -p $(DIST_DIR)
 
-app: $(BIN)
-	$(Q)$(ECHO) "$(BLUE)Creating app bundle$(RESET)"
-	$(Q)./appify -s $(BIN) -n $(DIST_DIR)/SeeWinApp
-
 install: $(BIN)
 	$(Q)$(ECHO) "$(BLUE)Installing to $(RESET)$(BOLD)$(BINDIR)/$(INSTALL_NAME)$(RESET)"
 	$(Q)install -d $(BINDIR)

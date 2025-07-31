@@ -75,7 +75,6 @@ You can reload the config at runtime using the reload key (`r` above, for some c
 
 ```bash
 make              # Build the binary in ./dist
-make app          # Bundle with appify as macOS app (currently broken, might fix in the future)
 sudo make install # Install to /usr/local/bin
 make clean        # Clean build artifacts
 ```
@@ -91,7 +90,6 @@ SeeWin/
 │   └── ...         # Core .c modules
 ├── dist/           # Build output
 ├── Makefile
-├── appify          # Shell script to package app (broken)
 └── README.md
 ```
 
