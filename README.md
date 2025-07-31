@@ -65,7 +65,7 @@ You can reload the config at runtime using the reload key (`r` above, for some c
 
 ---
 
-## 🛠 Development
+## 🛠 Build
 
 ```bash
 make              # Build the binary in ./dist
