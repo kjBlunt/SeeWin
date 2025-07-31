@@ -20,12 +20,48 @@ SeeWinConfig config = {
 };
 
 static int keycode_from_name(const char* name) {
+    if (strlen(name) == 1 && name[0] >= 'a' && name[0] <= 'z')
+      return kVK_ANSI_A + (name[0] - 'a');
+
+    if (strcmp(name, "0") == 0) return kVK_ANSI_0;
+    if (strcmp(name, "1") == 0) return kVK_ANSI_1;
+    if (strcmp(name, "2") == 0) return kVK_ANSI_2;
+    if (strcmp(name, "3") == 0) return kVK_ANSI_3;
+    if (strcmp(name, "4") == 0) return kVK_ANSI_4;
+    if (strcmp(name, "5") == 0) return kVK_ANSI_5;
+    if (strcmp(name, "6") == 0) return kVK_ANSI_6;
+    if (strcmp(name, "7") == 0) return kVK_ANSI_7;
+    if (strcmp(name, "8") == 0) return kVK_ANSI_8;
+    if (strcmp(name, "9") == 0) return kVK_ANSI_9;
+
+    if (strcmp(name, "return") == 0 || strcmp(name, "enter") == 0) return kVK_Return;
+    if (strcmp(name, "tab") == 0) return kVK_Tab;
     if (strcmp(name, "space") == 0) return kVK_Space;
-    if (strcmp(name, "a") == 0) return kVK_ANSI_A;
-    if (strcmp(name, "b") == 0) return kVK_ANSI_B;
-    if (strcmp(name, "j") == 0) return kVK_ANSI_J;
-    if (strcmp(name, "k") == 0) return kVK_ANSI_K;
-    if (strcmp(name, "return") == 0) return kVK_Return;
+    if (strcmp(name, "delete") == 0) return kVK_Delete;
+    if (strcmp(name, "escape") == 0 || strcmp(name, "esc") == 0) return kVK_Escape;
+    if (strcmp(name, "left") == 0) return kVK_LeftArrow;
+    if (strcmp(name, "right") == 0) return kVK_RightArrow;
+    if (strcmp(name, "up") == 0) return kVK_UpArrow;
+    if (strcmp(name, "down") == 0) return kVK_DownArrow;
+
+    if (strcmp(name, "minus") == 0) return kVK_ANSI_Minus;
+    if (strcmp(name, "equal") == 0) return kVK_ANSI_Equal;
+    if (strcmp(name, "left_bracket") == 0) return kVK_ANSI_LeftBracket;
+    if (strcmp(name, "right_bracket") == 0) return kVK_ANSI_RightBracket;
+    if (strcmp(name, "backslash") == 0) return kVK_ANSI_Backslash;
+    if (strcmp(name, "semicolon") == 0) return kVK_ANSI_Semicolon;
+    if (strcmp(name, "quote") == 0) return kVK_ANSI_Quote;
+    if (strcmp(name, "comma") == 0) return kVK_ANSI_Comma;
+    if (strcmp(name, "period") == 0 || strcmp(name, "dot") == 0) return kVK_ANSI_Period;
+    if (strcmp(name, "slash") == 0 || strcmp(name, "forwardslash") == 0) return kVK_ANSI_Slash;
+    if (strcmp(name, "grave") == 0 || strcmp(name, "backtick") == 0) return kVK_ANSI_Grave;
+
+    if (strncmp(name, "f", 1) == 0 && strlen(name) <= 3) {
+        int fnum = atoi(name + 1);
+        if (fnum >= 1 && fnum <= 19)
+            return kVK_F1 + (fnum - 1);
+    }
+
     return -1;
 }
 
