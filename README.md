@@ -1,5 +1,9 @@
 # SeeWin
 
+<div align="center">
+  <img src="assets/screenshot.png" alt="SeeWin screenshot" width="600"/>
+</div>
+
 **SeeWin** is a lightweight macOS utility for keyboard-based application switching. Inspired by the fact that I find `Cmd+Tab` annoying since it reorders everything by recency and I don't like having to visually look where the ~3 programs i use 90% of the time have been shuffled to this time.
 
 ---
@@ -11,7 +15,7 @@
 - Keybinding control for:
 
   - Navigation (up/down)
-  - Quick app activation
+  - Quick app activation (using number keys 1-9 when the window is focused)
   - Marking favorites
   - Dynamic config reload
 
@@ -64,10 +68,10 @@ You can reload the config at runtime using the reload key (`r` above, for some c
 ## 🛠 Development
 
 ```bash
-make         # Build the binary in ./dist
-make app     # Bundle with appify as macOS app (currently broken, might fix in the future)
+make              # Build the binary in ./dist
+make app          # Bundle with appify as macOS app (currently broken, might fix in the future)
 sudo make install # Install to /usr/local/bin
-make clean   # Clean build artifacts
+make clean        # Clean build artifacts
 ```
 
 ---
@@ -81,7 +85,7 @@ SeeWin/
 │   └── ...         # Core .c modules
 ├── dist/           # Build output
 ├── Makefile
-├── appify          # Shell script to package app (optional)
+├── appify          # Shell script to package app (broken)
 └── README.md
 ```
 
@@ -90,6 +94,8 @@ SeeWin/
 ## 🧪 Status
 
 It's functional but still buggy. I am neither good at C nor at macOS development so beware if you look at the code and know what you're doing you might have a stroke.
+
+I might work more on this in the future but for now it (mostly) does what I want so I'll leave it for now.
 
 ---
 
