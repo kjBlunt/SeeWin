@@ -2,6 +2,7 @@
 #include "include/switcher_window.h"
 #include "include/macros.h"
 #include "include/label_prefixes.h"
+#include "include/config.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <stdio.h>
@@ -125,7 +126,7 @@ void updateAppList(id stackView)
                 const char* favTitleStr = OBJC_CALL_CSTRING(favTitle, SEL_UTF8_STRING);
                 Class NSFont = objc_getClass("NSFont");
                 SEL monoSel = SEL("monospacedSystemFontOfSize:weight:");
-                id font = OBJC_CLASS_CALL_FLOAT_INT(id, NSFont, monoSel, 15.0, 5);
+                id font = OBJC_CLASS_CALL_FLOAT_INT(id, NSFont, monoSel, FONT_SIZE, 5);
                 OBJC_CALL_VOID_ARG(favButton, SEL("setFont:"), font);
                 
                 const char* favAppName = strip_prefix(favTitleStr);
@@ -162,7 +163,7 @@ void updateAppList(id stackView)
         OBJC_CALL_VOID_ARG(button, setTitleSel, titleString);
         Class NSFont = objc_getClass("NSFont");
         SEL monoSel = SEL("monospacedSystemFontOfSize:weight:");
-        id font = OBJC_CLASS_CALL_FLOAT_INT(id, NSFont, monoSel, 15.0, 5);
+        id font = OBJC_CLASS_CALL_FLOAT_INT(id, NSFont, monoSel, FONT_SIZE, 5);
         OBJC_CALL_VOID_ARG(button, SEL("setFont:"), font);
         OBJC_CALL_VOID_ARG(stackView, addArrangedSubviewSel, button);
 

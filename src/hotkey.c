@@ -1,5 +1,6 @@
 #include "include/hotkey.h"
 #include "include/macros.h"
+#include "include/config.h"
 #include <Carbon/Carbon.h>
 #include <objc/message.h>
 #include <objc/runtime.h>
@@ -25,6 +26,8 @@ OSStatus HotKeyHandler(EventHandlerCallRef nextHandler, EventRef theEvent, void 
 
 void registerGlobalHotkey()
 {
+    load_config();
+
     EventHotKeyRef gHotKeyRef;
     EventHotKeyID gHotKeyID;
     EventTypeSpec eventType;
@@ -36,5 +39,6 @@ void registerGlobalHotkey()
     eventType.eventKind = kEventHotKeyPressed;
 
     InstallApplicationEventHandler(&HotKeyHandler, 1, &eventType, NULL, NULL);
-    RegisterEventHotKey(kVK_Space, cmdKey, gHotKeyID, GetApplicationEventTarget(), 0, &gHotKeyRef);
+    RegisterEventHotKey(config.hotkey_keycode, config.hotkey_modifier, gHotKeyID, GetApplicationEventTarget(), 0, &gHotKeyRef);
 }
+

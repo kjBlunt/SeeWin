@@ -11,6 +11,7 @@
 #include "include/app_delegate.h"
 #include "include/window_delegate.h"
 #include "include/macros.h"
+#include "include/config.h"
 
 extern id NSApp;
 extern id const NSDefaultRunLoopMode;
@@ -20,6 +21,8 @@ typedef CGRect NSRect;
 
 int main()
 {
+    load_config();
+
     #ifdef ARC_AVAILABLE
     @autoreleasepool
     {

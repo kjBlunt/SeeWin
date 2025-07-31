@@ -1,11 +1,7 @@
 #include "include/label_prefixes.h"
+#include "include/config.h"
 #include <string.h>
 #include <stdlib.h>
-
-const char* PREFIX_SELECTED   = "\u25B6 ";
-const char* PREFIX_UNSELECTED = "  ";
-const char* PREFIX_FAVORITE   = "★ ";
-const char* PREFIX_ACTIVE     = "* ";
 
 int get_prefix_bit_length(const char* prefix) {
     return (int)strlen(prefix);

@@ -2,6 +2,7 @@
 #include "include/app_list.h"
 #include "include/macros.h"
 #include "include/label_prefixes.h"
+#include "include/config.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <assert.h>
@@ -205,13 +206,13 @@ static void customKeyDown(id self, SEL _cmd, id event) {
     const char* cstr = OBJC_CALL_CSTRING(chars, SEL_UTF8_STRING);
     if (!cstr) return;
 
-    if (strcmp(cstr, "q") == 0) {
+    if (cstr[0] == KEY_QUIT) {
         SEL orderOutSel = SEL("orderOut:");
         OBJC_CALL_VOID_ARG(self, orderOutSel, self);
         return;
     }
 
-    if (strcmp(cstr, "f") == 0) {
+    if (cstr[0] == KEY_FAVORITE) {
         toggleFavoriteForSelectedApp();
         return;
     }
@@ -234,22 +235,27 @@ static void customKeyDown(id self, SEL _cmd, id event) {
     }
 
     // Handle navigation keys
-    if (strcmp(cstr, "j") == 0) {
+    if (cstr[0] == KEY_UP) {
         if (selectedIndex + 1 < totalItems) {
             selectedIndex++;
             isInFavoritesList = (selectedIndex < totalFavorites);
             updateSelectionHighlight();
         }
         return;
-    } else if (strcmp(cstr, "k") == 0) {
+    } else if (cstr[0] == KEY_DOWN) {
         if (selectedIndex > 0) {
             selectedIndex--;
             isInFavoritesList = (selectedIndex < totalFavorites);
             updateSelectionHighlight();
         }
         return;
-    } else if (strcmp(cstr, "\r") == 0 || strcmp(cstr, "\n") == 0) {
+    } else if (cstr[0] == KEY_ACTIVATE) {
         activateSelectedApp();
+        return;
+    }
+
+    if (cstr[0] == KEY_RELOAD) {
+        load_config();
         return;
     }
 
