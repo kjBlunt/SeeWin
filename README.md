@@ -8,6 +8,7 @@
 <div align="center">
   <img src="assets/screenshot.png" alt="SeeWin screenshot" width="400"/>
 </div>
+<br>
 
 **SeeWin** is a lightweight macOS utility for keyboard-based application switching. Inspired by the fact that I find `Cmd+Tab` annoying since it reorders everything by recency and I don't like having to visually look where the ~3 programs i use 90% of the time have been shuffled to this time.
 
