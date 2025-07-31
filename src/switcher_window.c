@@ -1,6 +1,7 @@
 #include "include/switcher_window.h"
 #include "include/app_list.h"
 #include "include/macros.h"
+#include "include/label_prefixes.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <assert.h>
@@ -33,32 +34,33 @@ static void updateButtonTitlesForList(id buttons, BOOL isActiveList, NSUInteger 
         const char* baseTitle = OBJC_CALL_CSTRING(titleNSString, SEL_UTF8_STRING);
         if (!baseTitle) continue;
 
-        // Strip leading "> " or "  " from current title
-        const char* actualText = (strncmp(baseTitle, "> ", 2) == 0 || strncmp(baseTitle, "  ", 2) == 0)
-            ? baseTitle + 2
-            : baseTitle;
+        const char* rawText = strip_prefix(baseTitle);
 
+        BOOL wasFavorite = strstr(baseTitle, PREFIX_FAVORITE) != NULL;
+        BOOL wasActive = strstr(baseTitle, PREFIX_ACTIVE) != NULL;
         BOOL isSelected = isActiveList && (i == selectedOffset);
 
-        char finalLabel[256];
-        snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
+        char decoratedTitle[256];
+        snprintf(decoratedTitle, sizeof(decoratedTitle), "%s%s%s%s",
+                 isSelected ? PREFIX_SELECTED : PREFIX_UNSELECTED,
+                 wasFavorite ? PREFIX_FAVORITE : "",
+                 wasActive ? PREFIX_ACTIVE : "",
+                 rawText);
 
-        id newTitle = OBJC_CLASS_CALL_ID_CSTRING(objc_getClass("NSString"), SEL_STRING_WITH_UTF8_STRING, finalLabel);
+        id newTitle = OBJC_CLASS_CALL_ID_CSTRING(objc_getClass("NSString"), SEL_STRING_WITH_UTF8_STRING, decoratedTitle);
         OBJC_CALL_VOID_ARG(button, SEL_SET_TITLE, newTitle);
     }
 }
 
 
-void updateSelectionHighlight()
-{
+void updateSelectionHighlight() {
     if (!appButtons && !favoriteButtons) return;
 
     updateButtonTitlesForList(favoriteButtons, isInFavoritesList, selectedIndex);
     updateButtonTitlesForList(appButtons, !isInFavoritesList, selectedIndex - totalFavorites);
 }
 
-static void activateSelectedApp()
-{
+static void activateSelectedApp() {
     id selectedButton = nil;
     const char* actualText = NULL;
 
@@ -78,23 +80,7 @@ static void activateSelectedApp()
     id title = OBJC_CALL_ID(selectedButton, SEL_TITLE);
     const char* ctitle = OBJC_CALL_CSTRING(title, SEL_UTF8_STRING);
     
-    // Handle different prefixes: "> ", "  ", "★ ", "* "
-    actualText = ctitle;
-    
-    // Skip selection indicator
-    if (strncmp(actualText, "> ", 2) == 0 || strncmp(actualText, "  ", 2) == 0) {
-        actualText += 2;
-    }
-    
-    // Skip favorite star
-    if (strncmp(actualText, "★ ", 3) == 0) {
-        actualText += 4;
-    }
-    
-    // Skip active indicator
-    if (strncmp(actualText, "* ", 4) == 0) {
-        actualText += 6;
-    }
+    actualText = strip_prefix(ctitle);
 
     Class NSWorkspace = objc_getClass("NSWorkspace");
     id workspace = OBJC_CLASS_CALL_ID(NSWorkspace, SEL("sharedWorkspace"));
@@ -122,8 +108,7 @@ static void activateSelectedApp()
     OBJC_CALL_VOID_ARG(window, orderOutSel, window);
 }
 
-static void resizeWindowToFitStack()
-{
+static void resizeWindowToFitStack() {
     SEL layoutSel = SEL("layoutSubtreeIfNeeded");
     OBJC_CALL_VOID(stackViewRef, layoutSel);
 
@@ -140,8 +125,7 @@ static void resizeWindowToFitStack()
 }
 
 
-void toggleFavoriteForSelectedApp()
-{
+void toggleFavoriteForSelectedApp() {
     if (!appButtons && !favoriteButtons) return;
 
     const char* appName = NULL;
@@ -155,15 +139,7 @@ void toggleFavoriteForSelectedApp()
         id title = OBJC_CALL_ID(button, SEL_TITLE);
         const char* ctitle = OBJC_CALL_CSTRING(title, SEL_UTF8_STRING);
         
-        // Parse title - handle selection indicator and star prefix
-        appName = ctitle;
-        if (strncmp(appName, "> ", 2) == 0 || strncmp(appName, "  ", 2) == 0) {
-            appName += 2;
-        }
-        if (strncmp(appName, "★ ", 3) == 0) {
-            appName += 3;
-        }
-
+        appName = strip_prefix(ctitle);
         
         targetApp = OBJC_CALL_ID(button, SEL_REPRESENTED_OBJECT);
         
@@ -177,14 +153,7 @@ void toggleFavoriteForSelectedApp()
         id title = OBJC_CALL_ID(button, SEL_TITLE);
         const char* ctitle = OBJC_CALL_CSTRING(title, SEL_UTF8_STRING);
         
-        // Parse title - handle selection indicator and active indicator
-        appName = ctitle;
-        if (strncmp(appName, "> ", 2) == 0 || strncmp(appName, "  ", 2) == 0) {
-            appName += 2;
-        }
-        if (strncmp(appName, "* ", 4) == 0) {
-            appName += 4;
-        }
+        appName = strip_prefix(ctitle);
         
         targetApp = OBJC_CALL_ID(button, SEL_REPRESENTED_OBJECT);
 
@@ -209,9 +178,14 @@ void toggleFavoriteForSelectedApp()
         SEL setFocusRingTypeSel = SEL("setFocusRingType:");
         OBJC_CALL_VOID_UINT(favButton, setFocusRingTypeSel, 1);
         
-        // Set title with ★ prefix for favorites
+        BOOL wasActive = strstr(ctitle, PREFIX_ACTIVE) != NULL;
+
         char favLabel[256];
-        snprintf(favLabel, sizeof(favLabel), "★ %s", appName);
+        snprintf(favLabel, sizeof(favLabel), "%s%s%s",
+                 PREFIX_FAVORITE,
+                 wasActive ? PREFIX_ACTIVE : "",
+                 appName);
+
         id favTitle = OBJC_CLASS_CALL_ID_CSTRING(objc_getClass("NSString"), SEL_STRING_WITH_UTF8_STRING, favLabel);
         OBJC_CALL_VOID_ARG(favButton, SEL_SET_TITLE, favTitle);
         
@@ -225,8 +199,7 @@ void toggleFavoriteForSelectedApp()
     resizeWindowToFitStack();
 }
 
-static void customKeyDown(id self, SEL _cmd, id event)
-{
+static void customKeyDown(id self, SEL _cmd, id event) {
     SEL charactersIgnoringModifiersSel = SEL("charactersIgnoringModifiers");
     id chars = OBJC_CALL_ID(event, charactersIgnoringModifiersSel);
     const char* cstr = OBJC_CALL_CSTRING(chars, SEL_UTF8_STRING);
@@ -287,8 +260,7 @@ static void customKeyDown(id self, SEL _cmd, id event)
     OBJC_SUPER_CALL_VOID_ARG(&superInfo, _cmd, event);
 }
 
-static void toggleVisibility(id self, SEL _cmd)
-{
+static void toggleVisibility(id self, SEL _cmd) {
     SEL isVisibleSel = SEL("isVisible");
     BOOL visible = OBJC_CALL_BOOL(self, isVisibleSel);
 
@@ -324,8 +296,7 @@ BOOL acceptsFirstResponder(id self, SEL _cmd) {
   return YES;
 }
 
-void createSwitcherWindow(id windowDelegate)
-{
+void createSwitcherWindow(id windowDelegate) {
     Class NSWindowClass = objc_getClass("NSWindow");
     Class SwitcherWindowClass = objc_allocateClassPair(NSWindowClass, "SwitcherWindow", 0);
     assert(SwitcherWindowClass != Nil);

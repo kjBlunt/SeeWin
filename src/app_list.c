@@ -1,6 +1,7 @@
 #include "include/app_list.h"
 #include "include/switcher_window.h"
 #include "include/macros.h"
+#include "include/label_prefixes.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <stdio.h>
@@ -127,10 +128,7 @@ void updateAppList(id stackView)
                 id font = OBJC_CLASS_CALL_FLOAT_INT(id, NSFont, monoSel, 15.0, 5);
                 OBJC_CALL_VOID_ARG(favButton, SEL("setFont:"), font);
                 
-                const char* favAppName = favTitleStr;
-                if (strncmp(favTitleStr, "★ ", 3) == 0) {
-                    favAppName = favTitleStr + 3;
-                }
+                const char* favAppName = strip_prefix(favTitleStr);
                 
                 if (strcmp(cname, favAppName) == 0) {
                     isInFavorites = YES;
@@ -144,7 +142,7 @@ void updateAppList(id stackView)
         BOOL isActive = OBJC_CALL_BOOL(app, isActiveSel);
 
         char label[256];
-        snprintf(label, sizeof(label), isActive ? "* %s" : "%s", cname);
+        snprintf(label, sizeof(label), "%s%s", isActive ? PREFIX_ACTIVE : "", cname);
 
         id titleString = OBJC_CLASS_CALL_ID_CSTRING(NSString, stringWithUTF8Sel, label);
         id button = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSButton, allocSel), initSel);
