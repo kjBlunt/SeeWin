@@ -17,15 +17,13 @@
 // Termination flag from main app
 extern bool terminated;
 
-static NSUInteger applicationShouldTerminate()
-{
+static NSUInteger applicationShouldTerminate() {
     printf("Application termination requested\n");
     terminated = true;
     return 0;
 }
 
-id setupAppDelegate()
-{
+id setupAppDelegate() {
     Class NSObjectClass = objc_getClass("NSObject");
 
     Class AppDelegateClass = objc_allocateClassPair(NSObjectClass, "AppDelegate", 0);
@@ -54,4 +52,3 @@ id setupAppDelegate()
 
     return delegate;
 }
-

@@ -8,14 +8,12 @@
 // Externally defined flag
 extern bool terminated;
 
-static void windowWillClose(id self, SEL _sel, id notification)
-{
+static void windowWillClose() {
     printf("Window will close\n");
     terminated = true;
 }
 
-id setupWindowDelegate()
-{
+id setupWindowDelegate() {
     Class NSObjectClass = objc_getClass("NSObject");
 
     Class WindowDelegateClass = objc_allocateClassPair(NSObjectClass, "WindowDelegate", 0);

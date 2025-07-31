@@ -19,8 +19,7 @@ bool terminated = false;
 
 typedef CGRect NSRect;
 
-int main()
-{
+int main() {
     load_config();
 
     #ifdef ARC_AVAILABLE
@@ -42,14 +41,12 @@ int main()
     registerGlobalHotkey();
 
     Class NSDateClass = objc_getClass("NSDate");
-    while (!terminated)
-    {
+    while (!terminated) {
         id distantPast = OBJC_CLASS_CALL_ID(NSDateClass, SEL("distantPast"));
         id event = OBJC_CALL_ID_EVENT(NSApp, SEL("nextEventMatchingMask:untilDate:inMode:dequeue:"),
                                 NSUIntegerMax, distantPast, NSDefaultRunLoopMode, YES);
 
-        if (event)
-        {
+        if (event) {
             OBJC_CALL_VOID_ARG(NSApp, SEL("sendEvent:"), event);
             if (terminated) break;
             OBJC_CALL_VOID(NSApp, SEL("updateWindows"));

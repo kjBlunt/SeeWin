@@ -266,7 +266,7 @@ static void customKeyDown(id self, SEL _cmd, id event) {
     OBJC_SUPER_CALL_VOID_ARG(&superInfo, _cmd, event);
 }
 
-static void toggleVisibility(id self, SEL _cmd) {
+static void toggleVisibility(id self) {
     SEL isVisibleSel = SEL("isVisible");
     BOOL visible = OBJC_CALL_BOOL(self, isVisibleSel);
 
@@ -298,7 +298,7 @@ static void toggleVisibility(id self, SEL _cmd) {
     }
 }
 
-BOOL acceptsFirstResponder(id self, SEL _cmd) {
+BOOL acceptsFirstResponder() {
   return YES;
 }
 
@@ -345,9 +345,6 @@ void createSwitcherWindow(id windowDelegate) {
     NSUInteger behavior = (1 << 1);
     OBJC_CALL_VOID_UINT(window, setCollectionBehaviorSel, behavior);
 
-    SEL contentViewSel = SEL("contentView");
-    id contentView = OBJC_CALL_ID(window, contentViewSel);
-
     // Create NSVisualEffectView for blur
     Class NSVisualEffectView = objc_getClass("NSVisualEffectView");
     id blurView = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSVisualEffectView, SEL_ALLOC), SEL_INIT);
@@ -364,7 +361,6 @@ void createSwitcherWindow(id windowDelegate) {
     OBJC_CALL_VOID_BOOL(layer, SEL("setMasksToBounds:"), YES);
 
     NSRect scrollFrame = {{0, 0}, {400, 300}};
-    NSRect textFrame = {{0, 0}, {380, 300}};
 
     Class NSScrollView = objc_getClass("NSScrollView");
     id scrollView = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSScrollView, SEL_ALLOC), SEL_INIT);

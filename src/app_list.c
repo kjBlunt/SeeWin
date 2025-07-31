@@ -18,8 +18,7 @@ extern id favoriteButtons;
 extern NSUInteger selectedIndex;
 extern NSUInteger totalFavorites;
 
-static void addSeparatorToStackView(id stackView)
-{
+static void addSeparatorToStackView(id stackView) {
     Class NSView = objc_getClass("NSView");
     id separator = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSView, SEL_ALLOC), SEL_INIT);
 
@@ -41,8 +40,7 @@ static void addSeparatorToStackView(id stackView)
     OBJC_CALL_VOID_ARG(stackView, addArrangedSubviewSel, separator);
 }
 
-void updateAppList(id stackView)
-{
+void updateAppList(id stackView) {
     SEL arrangedSubviewsSel = SEL("arrangedSubviews");
     id subviews = OBJC_CALL_ID(stackView, arrangedSubviewsSel);
 

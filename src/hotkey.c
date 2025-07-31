@@ -9,14 +9,13 @@
 extern id window;
 extern id NSApp;
 
-OSStatus HotKeyHandler(EventHandlerCallRef nextHandler, EventRef theEvent, void *userData)
-{
+OSStatus HotKeyHandler(EventHandlerCallRef nextHandler, EventRef theEvent, void *userData) {
+    (void)userData;
+    (void)nextHandler;
     EventHotKeyID hkCom;
     GetEventParameter(theEvent, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hkCom), NULL, &hkCom);
 
     if (hkCom.signature == 'swch' && hkCom.id == 1) {
-        SEL isVisibleSel = SEL("isVisible");
-
         SEL toggleSel = SEL("toggleVisibility");
         OBJC_CALL_VOID(window, toggleSel);
     }
@@ -24,8 +23,7 @@ OSStatus HotKeyHandler(EventHandlerCallRef nextHandler, EventRef theEvent, void 
     return noErr;
 }
 
-void registerGlobalHotkey()
-{
+void registerGlobalHotkey() {
     load_config();
 
     EventHotKeyRef gHotKeyRef;
