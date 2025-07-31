@@ -10,6 +10,7 @@
 #include "include/switcher_window.h"
 #include "include/app_delegate.h"
 #include "include/window_delegate.h"
+#include "include/macros.h"
 
 extern id NSApp;
 extern id const NSDefaultRunLoopMode;
@@ -19,64 +20,47 @@ typedef CGRect NSRect;
 
 int main()
 {
-    SEL allocSel = sel_registerName("alloc");
-    SEL initSel = sel_registerName("init");
-
     #ifdef ARC_AVAILABLE
     @autoreleasepool
     {
     #else
-    Class NSAutoreleasePoolClass = objc_getClass("NSAutoreleasePool");
-    id poolAlloc = ((id (*)(Class, SEL))objc_msgSend)(NSAutoreleasePoolClass, allocSel);
-    id pool = ((id (*)(id, SEL))objc_msgSend)(poolAlloc, initSel);
+    id pool = OBJC_CLASS_CALL_ID(objc_getClass("NSAutoreleasePool"), SEL_ALLOC);
+    pool = OBJC_CALL_ID(pool, SEL_INIT);
     #endif
 
-    Class NSApplicationClass = objc_getClass("NSApplication");
-    SEL sharedApplicationSel = sel_registerName("sharedApplication");
-    ((id (*)(Class, SEL))objc_msgSend)(NSApplicationClass, sharedApplicationSel);
-
-    SEL setActivationPolicySel = sel_registerName("setActivationPolicy:");
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(NSApp, setActivationPolicySel, 1);
+    OBJC_CLASS_CALL_ID(objc_getClass("NSApplication"), SEL("sharedApplication"));
+    OBJC_CALL_VOID_INT(NSApp, SEL("setActivationPolicy:"), 1);
 
     id appDelegate = setupAppDelegate();
-    ((void (*)(id, SEL, id))objc_msgSend)(NSApp, sel_registerName("setDelegate:"), appDelegate);
+    OBJC_CALL_VOID_ARG(NSApp, SEL("setDelegate:"), appDelegate);
 
     id windowDelegate = setupWindowDelegate();
     createSwitcherWindow(windowDelegate);
-
     registerGlobalHotkey();
 
     Class NSDateClass = objc_getClass("NSDate");
-    SEL distantPastSel = sel_registerName("distantPast");
-    SEL nextEventMatchingMaskSel = sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:");
-    SEL sendEventSel = sel_registerName("sendEvent:");
-    SEL updateWindowsSel = sel_registerName("updateWindows");
-
-    while(!terminated)
+    while (!terminated)
     {
-        id distantPast = ((id (*)(Class, SEL))objc_msgSend)(NSDateClass, distantPastSel);
-        id event = ((id (*)(id, SEL, NSUInteger, id, id, BOOL))objc_msgSend)
-                   (NSApp, nextEventMatchingMaskSel, NSUIntegerMax, distantPast, NSDefaultRunLoopMode, YES);
+        id distantPast = OBJC_CLASS_CALL_ID(NSDateClass, SEL("distantPast"));
+        id event = OBJC_CALL_ID_EVENT(NSApp, SEL("nextEventMatchingMask:untilDate:inMode:dequeue:"),
+                                NSUIntegerMax, distantPast, NSDefaultRunLoopMode, YES);
 
-        if(event)
+        if (event)
         {
-            ((void (*)(id, SEL, id))objc_msgSend)(NSApp, sendEventSel, event);
-            
-            if(terminated) break;
-            
-            ((void (*)(id, SEL))objc_msgSend)(NSApp, updateWindowsSel);
+            OBJC_CALL_VOID_ARG(NSApp, SEL("sendEvent:"), event);
+            if (terminated) break;
+            OBJC_CALL_VOID(NSApp, SEL("updateWindows"));
         }
-        
         usleep(1000);
     }
-
     printf("Window switcher terminated\n");
 
     #ifdef ARC_AVAILABLE
     }
     #else
-    ((void (*)(id, SEL))objc_msgSend)(pool, sel_registerName("drain"));
+    OBJC_CALL_VOID(pool, SEL("drain"));
     #endif
-    
+
     return 0;
 }
+

@@ -1,4 +1,5 @@
 #include "include/window_delegate.h"
+#include "include/macros.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <assert.h>
@@ -24,7 +25,7 @@ id setupWindowDelegate()
     bool didAddProtocol = class_addProtocol(WindowDelegateClass, NSWindowDelegate);
     assert(didAddProtocol);
 
-    SEL windowWillCloseSel = sel_registerName("windowWillClose:");
+    SEL windowWillCloseSel = SEL("windowWillClose:");
     bool didAddMethod = class_addMethod(
         WindowDelegateClass,
         windowWillCloseSel,
@@ -36,10 +37,10 @@ id setupWindowDelegate()
     objc_registerClassPair(WindowDelegateClass);
 
     // Instantiate the delegate
-    SEL allocSel = sel_registerName("alloc");
-    SEL initSel = sel_registerName("init");
-    id delegate = ((id (*)(Class, SEL))objc_msgSend)(WindowDelegateClass, allocSel);
-    delegate = ((id (*)(id, SEL))objc_msgSend)(delegate, initSel);
+    SEL allocSel = SEL_ALLOC;
+    SEL initSel = SEL_INIT;
+    id delegate = OBJC_CLASS_CALL_ID(WindowDelegateClass, allocSel);
+    delegate = OBJC_CALL_ID(delegate, initSel);
 
     return delegate;
 }

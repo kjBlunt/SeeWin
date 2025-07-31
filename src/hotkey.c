@@ -1,4 +1,5 @@
 #include "include/hotkey.h"
+#include "include/macros.h"
 #include <Carbon/Carbon.h>
 #include <objc/message.h>
 #include <objc/runtime.h>
@@ -13,10 +14,10 @@ OSStatus HotKeyHandler(EventHandlerCallRef nextHandler, EventRef theEvent, void 
     GetEventParameter(theEvent, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hkCom), NULL, &hkCom);
 
     if (hkCom.signature == 'swch' && hkCom.id == 1) {
-        SEL isVisibleSel = sel_registerName("isVisible");
+        SEL isVisibleSel = SEL("isVisible");
 
-        SEL toggleSel = sel_registerName("toggleVisibility");
-        ((void (*)(id, SEL))objc_msgSend)(window, toggleSel);
+        SEL toggleSel = SEL("toggleVisibility");
+        OBJC_CALL_VOID(window, toggleSel);
     }
 
     return noErr;
@@ -35,5 +36,5 @@ void registerGlobalHotkey()
     eventType.eventKind = kEventHotKeyPressed;
 
     InstallApplicationEventHandler(&HotKeyHandler, 1, &eventType, NULL, NULL);
-    RegisterEventHotKey(kVK_Space, controlKey, gHotKeyID, GetApplicationEventTarget(), 0, &gHotKeyRef);
+    RegisterEventHotKey(kVK_Space, cmdKey, gHotKeyID, GetApplicationEventTarget(), 0, &gHotKeyRef);
 }

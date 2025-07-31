@@ -1,5 +1,6 @@
 #include "include/switcher_window.h"
 #include "include/app_list.h"
+#include "include/macros.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <assert.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <CoreGraphics/CGGeometry.h>
 #include <objc/NSObjCRuntime.h>
+
 
 typedef CGPoint NSPoint;
 typedef CGRect NSRect;
@@ -23,12 +25,12 @@ BOOL isInFavoritesList = NO;
 static void updateButtonTitlesForList(id buttons, BOOL isActiveList, NSUInteger selectedOffset) {
     if (!buttons) return;
 
-    NSUInteger count = ((NSUInteger (*)(id, SEL))objc_msgSend)(buttons, sel_registerName("count"));
+    NSUInteger count = OBJC_CALL_UINT(buttons, SEL_COUNT);
 
     for (NSUInteger i = 0; i < count; i++) {
-        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(buttons, sel_registerName("objectAtIndex:"), i);
-        id titleNSString = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
-        const char* baseTitle = ((const char* (*)(id, SEL))objc_msgSend)(titleNSString, sel_registerName("UTF8String"));
+        id button = OBJC_CALL_ID_UINT(buttons, SEL_OBJECT_AT_INDEX, i);
+        id titleNSString = OBJC_CALL_ID(button, SEL_TITLE);
+        const char* baseTitle = OBJC_CALL_CSTRING(titleNSString, SEL_UTF8_STRING);
         if (!baseTitle) continue;
 
         // Strip leading "> " or "  " from current title
@@ -41,10 +43,8 @@ static void updateButtonTitlesForList(id buttons, BOOL isActiveList, NSUInteger 
         char finalLabel[256];
         snprintf(finalLabel, sizeof(finalLabel), isSelected ? "> %s" : "  %s", actualText);
 
-        id newTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-            objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), finalLabel
-        );
-        ((void (*)(id, SEL, id))objc_msgSend)(button, sel_registerName("setTitle:"), newTitle);
+        id newTitle = OBJC_CLASS_CALL_ID_CSTRING(objc_getClass("NSString"), SEL_STRING_WITH_UTF8_STRING, finalLabel);
+        OBJC_CALL_VOID_ARG(button, SEL_SET_TITLE, newTitle);
     }
 }
 
@@ -63,20 +63,20 @@ static void activateSelectedApp()
     const char* actualText = NULL;
 
     if (isInFavoritesList && favoriteButtons) {
-        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
+        NSUInteger favCount = OBJC_CALL_UINT(favoriteButtons, SEL_COUNT);
         if (selectedIndex >= favCount) return;
-        selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
+        selectedButton = OBJC_CALL_ID_UINT(favoriteButtons, SEL_OBJECT_AT_INDEX, selectedIndex);
     } else if (!isInFavoritesList && appButtons) {
-        NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        NSUInteger appCount = OBJC_CALL_UINT(appButtons, SEL_COUNT);
         NSUInteger appIndex = selectedIndex - totalFavorites;
         if (appIndex >= appCount) return;
-        selectedButton = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), appIndex);
+        selectedButton = OBJC_CALL_ID_UINT(appButtons, SEL_OBJECT_AT_INDEX, appIndex);
     }
 
     if (!selectedButton) return;
 
-    id title = ((id (*)(id, SEL))objc_msgSend)(selectedButton, sel_registerName("title"));
-    const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
+    id title = OBJC_CALL_ID(selectedButton, SEL_TITLE);
+    const char* ctitle = OBJC_CALL_CSTRING(title, SEL_UTF8_STRING);
     
     // Handle different prefixes: "> ", "  ", "★ ", "* "
     actualText = ctitle;
@@ -97,46 +97,46 @@ static void activateSelectedApp()
     }
 
     Class NSWorkspace = objc_getClass("NSWorkspace");
-    id workspace = ((id (*)(Class, SEL))objc_msgSend)(NSWorkspace, sel_registerName("sharedWorkspace"));
-    id apps = ((id (*)(id, SEL))objc_msgSend)(workspace, sel_registerName("runningApplications"));
+    id workspace = OBJC_CLASS_CALL_ID(NSWorkspace, SEL("sharedWorkspace"));
+    id apps = OBJC_CALL_ID(workspace, SEL("runningApplications"));
 
-    SEL countSel = sel_registerName("count");
-    SEL objectAtIndexSel = sel_registerName("objectAtIndex:");
-    SEL localizedNameSel = sel_registerName("localizedName");
-    SEL activateWithOptionsSel = sel_registerName("activateWithOptions:");
-    SEL UTF8StringSel = sel_registerName("UTF8String");
+    SEL countSel = SEL_COUNT;
+    SEL objectAtIndexSel = SEL_OBJECT_AT_INDEX;
+    SEL localizedNameSel = SEL("localizedName");
+    SEL activateWithOptionsSel = SEL("activateWithOptions:");
+    SEL UTF8StringSel = SEL_UTF8_STRING;
 
-    NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(apps, countSel);
+    NSUInteger appCount = OBJC_CALL_UINT(apps, countSel);
     for (NSUInteger i = 0; i < appCount; ++i) {
-        id app = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(apps, objectAtIndexSel, i);
-        id name = ((id (*)(id, SEL))objc_msgSend)(app, localizedNameSel);
-        const char* appName = ((const char* (*)(id, SEL))objc_msgSend)(name, UTF8StringSel);
+        id app = OBJC_CALL_ID_UINT(apps, objectAtIndexSel, i);
+        id name = OBJC_CALL_ID(app, localizedNameSel);
+        const char* appName = OBJC_CALL_CSTRING(name, UTF8StringSel);
 
         if (strcmp(appName, actualText) == 0) {
-            ((void (*)(id, SEL, NSUInteger))objc_msgSend)(app, activateWithOptionsSel, 1);
+            OBJC_CALL_VOID_UINT(app, activateWithOptionsSel, 1);
             break;
         }
     }
 
-    SEL orderOutSel = sel_registerName("orderOut:");
-    ((void (*)(id, SEL, id))objc_msgSend)(window, orderOutSel, window);
+    SEL orderOutSel = SEL("orderOut:");
+    OBJC_CALL_VOID_ARG(window, orderOutSel, window);
 }
 
 static void resizeWindowToFitStack()
 {
-    SEL layoutSel = sel_registerName("layoutSubtreeIfNeeded");
-    ((void (*)(id, SEL))objc_msgSend)(stackViewRef, layoutSel);
+    SEL layoutSel = SEL("layoutSubtreeIfNeeded");
+    OBJC_CALL_VOID(stackViewRef, layoutSel);
 
-    SEL fittingSizeSel = sel_registerName("fittingSize");
-    NSSize fittingSize = ((NSSize (*)(id, SEL))objc_msgSend)(stackViewRef, fittingSizeSel);
+    SEL fittingSizeSel = SEL("fittingSize");
+    NSSize fittingSize = OBJC_CALL_NSSIZE(stackViewRef, fittingSizeSel);
 
     fittingSize.width += 20;
     fittingSize.height += 20;
 
-    SEL setContentSizeSel = sel_registerName("setContentSize:");
-    ((void (*)(id, SEL, NSSize))objc_msgSend)(window, setContentSizeSel, fittingSize);
+    SEL setContentSizeSel = SEL("setContentSize:");
+    OBJC_CALL_VOID_SIZE(window, setContentSizeSel, fittingSize);
 
-    ((void (*)(id, SEL))objc_msgSend)(window, sel_registerName("center"));
+    OBJC_CALL_VOID(window, SEL("center"));
 }
 
 
@@ -148,12 +148,12 @@ void toggleFavoriteForSelectedApp()
     id targetApp = nil;
 
     if (isInFavoritesList && favoriteButtons) {
-        NSUInteger favCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("count"));
+        NSUInteger favCount = OBJC_CALL_UINT(favoriteButtons, SEL_COUNT);
         if (selectedIndex >= favCount) return;
         
-        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("objectAtIndex:"), selectedIndex);
-        id title = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
-        const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
+        id button = OBJC_CALL_ID_UINT(favoriteButtons, SEL_OBJECT_AT_INDEX, selectedIndex);
+        id title = OBJC_CALL_ID(button, SEL_TITLE);
+        const char* ctitle = OBJC_CALL_CSTRING(title, SEL_UTF8_STRING);
         
         // Parse title - handle selection indicator and star prefix
         appName = ctitle;
@@ -165,17 +165,17 @@ void toggleFavoriteForSelectedApp()
         }
 
         
-        targetApp = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("representedObject"));
+        targetApp = OBJC_CALL_ID(button, SEL_REPRESENTED_OBJECT);
         
-        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favoriteButtons, sel_registerName("removeObjectAtIndex:"), selectedIndex);
+        OBJC_CALL_VOID_UINT(favoriteButtons, SEL_REMOVE_OBJECT_AT_INDEX, selectedIndex);
     } else if (!isInFavoritesList && appButtons) {
-        NSUInteger appCount = ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        NSUInteger appCount = OBJC_CALL_UINT(appButtons, SEL_COUNT);
         NSUInteger appIndex = selectedIndex - totalFavorites;
         if (appIndex >= appCount) return;
 
-        id button = ((id (*)(id, SEL, NSUInteger))objc_msgSend)(appButtons, sel_registerName("objectAtIndex:"), appIndex);
-        id title = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("title"));
-        const char* ctitle = ((const char* (*)(id, SEL))objc_msgSend)(title, sel_registerName("UTF8String"));
+        id button = OBJC_CALL_ID_UINT(appButtons, SEL_OBJECT_AT_INDEX, appIndex);
+        id title = OBJC_CALL_ID(button, SEL_TITLE);
+        const char* ctitle = OBJC_CALL_CSTRING(title, SEL_UTF8_STRING);
         
         // Parse title - handle selection indicator and active indicator
         appName = ctitle;
@@ -186,44 +186,39 @@ void toggleFavoriteForSelectedApp()
             appName += 4;
         }
         
-        targetApp = ((id (*)(id, SEL))objc_msgSend)(button, sel_registerName("representedObject"));
+        targetApp = OBJC_CALL_ID(button, SEL_REPRESENTED_OBJECT);
 
         // Add to favorites
         if (!favoriteButtons) {
-            favoriteButtons = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSMutableArray"), sel_registerName("alloc"));
-            favoriteButtons = ((id (*)(id, SEL))objc_msgSend)(favoriteButtons, sel_registerName("init"));
+            favoriteButtons = OBJC_CLASS_CALL_ID(objc_getClass("NSMutableArray"), SEL_ALLOC);
+            favoriteButtons = OBJC_CALL_ID(favoriteButtons, SEL_INIT);
         }
         
         Class NSButton = objc_getClass("NSButton");
-        id favButton = ((id (*)(id, SEL))objc_msgSend)(
-            ((id (*)(Class, SEL))objc_msgSend)(NSButton, sel_registerName("alloc")),
-            sel_registerName("init")
-        );
+        id favButton = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSButton, SEL_ALLOC), SEL_INIT);
         
-        SEL setButtonTypeSel = sel_registerName("setButtonType:");
-        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setButtonTypeSel, 0);
+        SEL setButtonTypeSel = SEL("setButtonType:");
+        OBJC_CALL_VOID_UINT(favButton, setButtonTypeSel, 0);
         
-        SEL setBorderedSel = sel_registerName("setBordered:");
-        ((void (*)(id, SEL, BOOL))objc_msgSend)(favButton, setBorderedSel, NO);
+        SEL setBorderedSel = SEL("setBordered:");
+        OBJC_CALL_VOID_BOOL(favButton, setBorderedSel, NO);
         
-        SEL setBezelStyleSel = sel_registerName("setBezelStyle:");
-        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setBezelStyleSel, 15);
+        SEL setBezelStyleSel = SEL("setBezelStyle:");
+        OBJC_CALL_VOID_UINT(favButton, setBezelStyleSel, 15);
         
-        SEL setFocusRingTypeSel = sel_registerName("setFocusRingType:");
-        ((void (*)(id, SEL, NSUInteger))objc_msgSend)(favButton, setFocusRingTypeSel, 1);
+        SEL setFocusRingTypeSel = SEL("setFocusRingType:");
+        OBJC_CALL_VOID_UINT(favButton, setFocusRingTypeSel, 1);
         
         // Set title with ★ prefix for favorites
         char favLabel[256];
         snprintf(favLabel, sizeof(favLabel), "★ %s", appName);
-        id favTitle = ((id (*)(Class, SEL, const char*))objc_msgSend)(
-            objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), favLabel
-        );
-        ((void (*)(id, SEL, id))objc_msgSend)(favButton, sel_registerName("setTitle:"), favTitle);
+        id favTitle = OBJC_CLASS_CALL_ID_CSTRING(objc_getClass("NSString"), SEL_STRING_WITH_UTF8_STRING, favLabel);
+        OBJC_CALL_VOID_ARG(favButton, SEL_SET_TITLE, favTitle);
         
-        SEL setRepresentedObjectSel = sel_registerName("setRepresentedObject:");
-        ((void (*)(id, SEL, id))objc_msgSend)(favButton, setRepresentedObjectSel, targetApp);
+        SEL setRepresentedObjectSel = SEL_SET_REPRESENTED_OBJECT;
+        OBJC_CALL_VOID_ARG(favButton, setRepresentedObjectSel, targetApp);
         
-        ((void (*)(id, SEL, id))objc_msgSend)(favoriteButtons, sel_registerName("addObject:"), favButton);
+        OBJC_CALL_VOID_ARG(favoriteButtons, SEL_ADD_OBJECT, favButton);
     }
 
     updateAppList(stackViewRef);
@@ -232,14 +227,14 @@ void toggleFavoriteForSelectedApp()
 
 static void customKeyDown(id self, SEL _cmd, id event)
 {
-    SEL charactersIgnoringModifiersSel = sel_registerName("charactersIgnoringModifiers");
-    id chars = ((id (*)(id, SEL))objc_msgSend)(event, charactersIgnoringModifiersSel);
-    const char* cstr = ((const char* (*)(id, SEL))objc_msgSend)(chars, sel_registerName("UTF8String"));
+    SEL charactersIgnoringModifiersSel = SEL("charactersIgnoringModifiers");
+    id chars = OBJC_CALL_ID(event, charactersIgnoringModifiersSel);
+    const char* cstr = OBJC_CALL_CSTRING(chars, SEL_UTF8_STRING);
     if (!cstr) return;
 
     if (strcmp(cstr, "q") == 0) {
-        SEL orderOutSel = sel_registerName("orderOut:");
-        ((void (*)(id, SEL, id))objc_msgSend)(self, orderOutSel, self);
+        SEL orderOutSel = SEL("orderOut:");
+        OBJC_CALL_VOID_ARG(self, orderOutSel, self);
         return;
     }
 
@@ -250,7 +245,7 @@ static void customKeyDown(id self, SEL _cmd, id event)
 
     NSUInteger totalItems = totalFavorites;
     if (appButtons) {
-        totalItems += ((NSUInteger (*)(id, SEL))objc_msgSend)(appButtons, sel_registerName("count"));
+        totalItems += OBJC_CALL_UINT(appButtons, SEL_COUNT);
     }
 
     // Handle number keys (0-9)
@@ -289,17 +284,17 @@ static void customKeyDown(id self, SEL _cmd, id event)
         .receiver = self,
         .super_class = class_getSuperclass(object_getClass(self))
     };
-    ((void (*)(struct objc_super*, SEL, id))objc_msgSendSuper)(&superInfo, _cmd, event);
+    OBJC_SUPER_CALL_VOID_ARG(&superInfo, _cmd, event);
 }
 
 static void toggleVisibility(id self, SEL _cmd)
 {
-    SEL isVisibleSel = sel_registerName("isVisible");
-    BOOL visible = ((BOOL (*)(id, SEL))objc_msgSend)(self, isVisibleSel);
+    SEL isVisibleSel = SEL("isVisible");
+    BOOL visible = OBJC_CALL_BOOL(self, isVisibleSel);
 
     if (visible) {
-        SEL orderOutSel = sel_registerName("orderOut:");
-        ((void (*)(id, SEL, id))objc_msgSend)(self, orderOutSel, self);
+        SEL orderOutSel = SEL("orderOut:");
+        OBJC_CALL_VOID_ARG(self, orderOutSel, self);
     } else {
         updateAppList(stackViewRef);
         resizeWindowToFitStack();
@@ -307,21 +302,21 @@ static void toggleVisibility(id self, SEL _cmd)
         selectedIndex = 0;
         isInFavoritesList = (totalFavorites > 0);
 
-        SEL makeKeyAndOrderFrontSel = sel_registerName("makeKeyAndOrderFront:");
-        ((void (*)(id, SEL, id))objc_msgSend)(self, makeKeyAndOrderFrontSel, self);
+        SEL makeKeyAndOrderFrontSel = SEL("makeKeyAndOrderFront:");
+        OBJC_CALL_VOID_ARG(self, makeKeyAndOrderFrontSel, self);
 
-        SEL setAcceptsMouseMovedEventsSel = sel_registerName("setAcceptsMouseMovedEvents:");
-        ((void (*)(id, SEL, BOOL))objc_msgSend)(window, setAcceptsMouseMovedEventsSel, YES);
+        SEL setAcceptsMouseMovedEventsSel = SEL("setAcceptsMouseMovedEvents:");
+        OBJC_CALL_VOID_BOOL(window, setAcceptsMouseMovedEventsSel, YES);
 
-        SEL setIgnoresMouseEventsSel = sel_registerName("setIgnoresMouseEvents:");
-        ((void (*)(id, SEL, BOOL))objc_msgSend)(window, setIgnoresMouseEventsSel, NO);
+        SEL setIgnoresMouseEventsSel = SEL("setIgnoresMouseEvents:");
+        OBJC_CALL_VOID_BOOL(window, setIgnoresMouseEventsSel, NO);
 
-        SEL setAcceptsFirstResponderSel = sel_registerName("makeFirstResponder:");
-        ((void (*)(id, SEL, id))objc_msgSend)(window, setAcceptsFirstResponderSel, window);
+        SEL setAcceptsFirstResponderSel = SEL("makeFirstResponder:");
+        OBJC_CALL_VOID_ARG(window, setAcceptsFirstResponderSel, window);
 
-        SEL activateIgnoringOtherAppsSel = sel_registerName("activateIgnoringOtherApps:");
+        SEL activateIgnoringOtherAppsSel = SEL("activateIgnoringOtherApps:");
         extern id NSApp;
-        ((void (*)(id, SEL, BOOL))objc_msgSend)(NSApp, activateIgnoringOtherAppsSel, YES);
+        OBJC_CALL_VOID_BOOL(NSApp, activateIgnoringOtherAppsSel, YES);
     }
 }
 
@@ -335,115 +330,107 @@ void createSwitcherWindow(id windowDelegate)
     Class SwitcherWindowClass = objc_allocateClassPair(NSWindowClass, "SwitcherWindow", 0);
     assert(SwitcherWindowClass != Nil);
 
-    class_addMethod(SwitcherWindowClass, sel_registerName("keyDown:"), (IMP)customKeyDown, "v@:@");
-    class_addMethod(SwitcherWindowClass, sel_registerName("toggleVisibility"), (IMP)toggleVisibility, "v@:");
-    class_addMethod(SwitcherWindowClass, sel_registerName("acceptsFirstResponder"), (IMP)acceptsFirstResponder, "c@:");
+    class_addMethod(SwitcherWindowClass, SEL("keyDown:"), (IMP)customKeyDown, "v@:@");
+    class_addMethod(SwitcherWindowClass, SEL("toggleVisibility"), (IMP)toggleVisibility, "v@:");
+    class_addMethod(SwitcherWindowClass, SEL("acceptsFirstResponder"), (IMP)acceptsFirstResponder, "c@:");
     objc_registerClassPair(SwitcherWindowClass);
 
     NSRect rect = {{100, 100}, {400, 300}};
-    SEL allocSel = sel_registerName("alloc");
-    SEL initSel = sel_registerName("initWithContentRect:styleMask:backing:defer:");
+    SEL allocSel = SEL_ALLOC;
+    SEL initSel = SEL("initWithContentRect:styleMask:backing:defer:");
 
-    id windowAlloc = ((id (*)(Class, SEL))objc_msgSend)(SwitcherWindowClass, allocSel);
+    id windowAlloc = OBJC_CLASS_CALL_ID(SwitcherWindowClass, allocSel);
     NSUInteger styleMask = (1 << 0); // NSWindowStyleMaskBorderless
-    window = ((id (*)(id, SEL, NSRect, NSUInteger, NSUInteger, BOOL))objc_msgSend)(
-        windowAlloc, initSel, rect, styleMask, 2, NO
-    );
+    window = OBJC_CALL_ID_RECT_UINT_UINT_BOOL(windowAlloc, initSel, rect, styleMask, 2, NO);
 
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setOpaque:"), NO);
-    id clearColor = ((id (*)(Class, SEL))objc_msgSend)(objc_getClass("NSColor"), sel_registerName("clearColor"));
-    ((void (*)(id, SEL, id))objc_msgSend)(window, sel_registerName("setBackgroundColor:"), clearColor);
+    OBJC_CALL_VOID_BOOL(window, SEL("setOpaque:"), NO);
+    id clearColor = OBJC_CLASS_CALL_ID(objc_getClass("NSColor"), SEL("clearColor"));
+    OBJC_CALL_VOID_ARG(window, SEL("setBackgroundColor:"), clearColor);
 
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(window, sel_registerName("setTitleVisibility:"), 1); // NSWindowTitleHidden
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setTitlebarAppearsTransparent:"), YES);
+    OBJC_CALL_VOID_INT(window, SEL("setTitleVisibility:"), 1); // NSWindowTitleHidden
+    OBJC_CALL_VOID_BOOL(window, SEL("setTitlebarAppearsTransparent:"), YES);
 
     // Set window level above normal windows
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(window, sel_registerName("setLevel:"), 3); // NSStatusWindowLevel
+    OBJC_CALL_VOID_INT(window, SEL("setLevel:"), 3); // NSStatusWindowLevel
 
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, sel_registerName("setHasShadow:"), NO);
+    OBJC_CALL_VOID_BOOL(window, SEL("setHasShadow:"), NO);
 
-    SEL centerSel = sel_registerName("center");
-    ((void (*)(id, SEL))objc_msgSend)(window, centerSel);
+    SEL centerSel = SEL("center");
+    OBJC_CALL_VOID(window, centerSel);
 
-    SEL setDelegateSel = sel_registerName("setDelegate:");
-    ((void (*)(id, SEL, id))objc_msgSend)(window, setDelegateSel, windowDelegate);
+    SEL setDelegateSel = SEL("setDelegate:");
+    OBJC_CALL_VOID_ARG(window, setDelegateSel, windowDelegate);
 
-    SEL setReleasedWhenClosedSel = sel_registerName("setReleasedWhenClosed:");
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(window, setReleasedWhenClosedSel, NO);
+    SEL setReleasedWhenClosedSel = SEL("setReleasedWhenClosed:");
+    OBJC_CALL_VOID_BOOL(window, setReleasedWhenClosedSel, NO);
 
-    SEL setCollectionBehaviorSel = sel_registerName("setCollectionBehavior:");
+    SEL setCollectionBehaviorSel = SEL("setCollectionBehavior:");
     NSUInteger behavior = (1 << 1);
-    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(window, setCollectionBehaviorSel, behavior);
+    OBJC_CALL_VOID_UINT(window, setCollectionBehaviorSel, behavior);
 
-    SEL contentViewSel = sel_registerName("contentView");
-    id contentView = ((id (*)(id, SEL))objc_msgSend)(window, contentViewSel);
+    SEL contentViewSel = SEL("contentView");
+    id contentView = OBJC_CALL_ID(window, contentViewSel);
 
     // Create NSVisualEffectView for blur
     Class NSVisualEffectView = objc_getClass("NSVisualEffectView");
-    id blurView = ((id (*)(Class, SEL))objc_msgSend)(NSVisualEffectView, sel_registerName("alloc"));
-    blurView = ((id (*)(id, SEL))objc_msgSend)(blurView, sel_registerName("init"));
+    id blurView = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSVisualEffectView, SEL_ALLOC), SEL_INIT);
 
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setMaterial:"), 0); // NSVisualEffectMaterialAppearanceBased
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setBlendingMode:"), 0); // BehindWindow
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(blurView, sel_registerName("setState:"), 1); // FollowsWindowActiveState
+    OBJC_CALL_VOID_INT(blurView, SEL("setMaterial:"), 0); // NSVisualEffectMaterialAppearanceBased
+    OBJC_CALL_VOID_INT(blurView, SEL("setBlendingMode:"), 0); // BehindWindow
+    OBJC_CALL_VOID_INT(blurView, SEL("setState:"), 1); // FollowsWindowActiveState
 
-    ((void (*)(id, SEL, id))objc_msgSend)(window, sel_registerName("setContentView:"), blurView);
+    OBJC_CALL_VOID_ARG(window, SEL("setContentView:"), blurView);
 
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(blurView, sel_registerName("setWantsLayer:"), YES);
-    id layer = ((id (*)(id, SEL))objc_msgSend)(blurView, sel_registerName("layer"));
-    ((void (*)(id, SEL, CGFloat))objc_msgSend)(layer, sel_registerName("setCornerRadius:"), 12.0);
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(layer, sel_registerName("setMasksToBounds:"), YES);
+    OBJC_CALL_VOID_BOOL(blurView, SEL("setWantsLayer:"), YES);
+    id layer = OBJC_CALL_ID(blurView, SEL("layer"));
+    OBJC_CALL_VOID_FLOAT(layer, SEL("setCornerRadius:"), 12.0);
+    OBJC_CALL_VOID_BOOL(layer, SEL("setMasksToBounds:"), YES);
 
     NSRect scrollFrame = {{0, 0}, {400, 300}};
     NSRect textFrame = {{0, 0}, {380, 300}};
 
     Class NSScrollView = objc_getClass("NSScrollView");
-    id scrollView = ((id (*)(id, SEL))objc_msgSend)(
-        ((id (*)(Class, SEL))objc_msgSend)(NSScrollView, sel_registerName("alloc")),
-        sel_registerName("init")
-    );
+    id scrollView = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSScrollView, SEL_ALLOC), SEL_INIT);
 
-    ((void (*)(id, SEL, NSRect))objc_msgSend)(scrollView, sel_registerName("setFrame:"), scrollFrame);
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(scrollView, sel_registerName("setHasVerticalScroller:"), YES);
+    OBJC_CALL_VOID_RECT(scrollView, SEL("setFrame:"), scrollFrame);
+    OBJC_CALL_VOID_BOOL(scrollView, SEL("setHasVerticalScroller:"), YES);
 
     Class NSStackView = objc_getClass("NSStackView");
-    id stackView = ((id (*)(Class, SEL))objc_msgSend)(NSStackView, sel_registerName("alloc"));
-    stackView = ((id (*)(id, SEL))objc_msgSend)(stackView, sel_registerName("init"));
+    id stackView = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSStackView, SEL_ALLOC), SEL_INIT);
 
-    SEL setOrientationSel = sel_registerName("setOrientation:");
-    ((void (*)(id, SEL, NSInteger))objc_msgSend)(stackView, setOrientationSel, 1);
+    SEL setOrientationSel = SEL("setOrientation:");
+    OBJC_CALL_VOID_INT(stackView, setOrientationSel, 1);
     stackViewRef = stackView;
 
-    SEL setTranslatesAutoresizingMaskIntoConstraintsSel = sel_registerName("setTranslatesAutoresizingMaskIntoConstraints:");
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(stackView, setTranslatesAutoresizingMaskIntoConstraintsSel, NO);
+    SEL setTranslatesAutoresizingMaskIntoConstraintsSel = SEL("setTranslatesAutoresizingMaskIntoConstraints:");
+    OBJC_CALL_VOID_BOOL(stackView, setTranslatesAutoresizingMaskIntoConstraintsSel, NO);
 
-    SEL setAutoresizingMaskSel = sel_registerName("setAutoresizingMask:");
+    SEL setAutoresizingMaskSel = SEL("setAutoresizingMask:");
     NSUInteger mask = (1 << 1) | (1 << 4); // NSViewWidthSizable | NSViewHeightSizable
-    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(stackView, setAutoresizingMaskSel, mask);
+    OBJC_CALL_VOID_UINT(stackView, setAutoresizingMaskSel, mask);
 
-    SEL setAlignmentSel = sel_registerName("setAlignment:");
-    ((void (*)(id, SEL, NSUInteger))objc_msgSend)(stackView, setAlignmentSel, 1); // NSLayoutAttributeLeading
+    SEL setAlignmentSel = SEL("setAlignment:");
+    OBJC_CALL_VOID_UINT(stackView, setAlignmentSel, 1); // NSLayoutAttributeLeading
 
-    SEL setHuggingSel = sel_registerName("setHuggingPriority:forOrientation:");
-    ((void (*)(id, SEL, float, NSUInteger))objc_msgSend)(stackView, setHuggingSel, 251.0f, 1); // vertical orientation
+    SEL setHuggingSel = SEL("setHuggingPriority:forOrientation:");
+    OBJC_CALL_VOID_FLOAT_UINT(stackView, setHuggingSel, 251.0f, 1); // vertical orientation
 
-    SEL setSpacingSel = sel_registerName("setSpacing:");
-    ((void (*)(id, SEL, double))objc_msgSend)(stackView, setSpacingSel, 8.0);
+    SEL setSpacingSel = SEL("setSpacing:");
+    OBJC_CALL_VOID_DOUBLE(stackView, setSpacingSel, 8.0);
 
     Class NSView = objc_getClass("NSView");
-    id paddedView = ((id (*)(Class, SEL))objc_msgSend)(NSView, sel_registerName("alloc"));
-    paddedView = ((id (*)(id, SEL))objc_msgSend)(paddedView, sel_registerName("init"));
+    id paddedView = OBJC_CALL_ID(OBJC_CLASS_CALL_ID(NSView, SEL_ALLOC), SEL_INIT);
 
-    ((void (*)(id, SEL, NSRect))objc_msgSend)(paddedView, sel_registerName("setFrame:"), scrollFrame);
+    OBJC_CALL_VOID_RECT(paddedView, SEL("setFrame:"), scrollFrame);
 
-    SEL addSubviewSel = sel_registerName("addSubview:");
-    ((void (*)(id, SEL, id))objc_msgSend)(paddedView, addSubviewSel, stackViewRef);
+    SEL addSubviewSel = SEL("addSubview:");
+    OBJC_CALL_VOID_ARG(paddedView, addSubviewSel, stackViewRef);
 
     NSRect stackFrame = {{10, 10}, {380, 280}};
-    ((void (*)(id, SEL, NSRect))objc_msgSend)(stackViewRef, sel_registerName("setFrame:"), stackFrame);
-    ((void (*)(id, SEL, id))objc_msgSend)(scrollView, sel_registerName("setDocumentView:"), paddedView);
+    OBJC_CALL_VOID_RECT(stackViewRef, SEL("setFrame:"), stackFrame);
+    OBJC_CALL_VOID_ARG(scrollView, SEL("setDocumentView:"), paddedView);
 
-    ((void (*)(id, SEL, id))objc_msgSend)(blurView, sel_registerName("addSubview:"), scrollView);
+    OBJC_CALL_VOID_ARG(blurView, SEL("addSubview:"), scrollView);
 }
 
 id getSwitcherStackView(void)

@@ -1,4 +1,5 @@
 #include "include/app_delegate.h"
+#include "include/macros.h"
 #include <objc/runtime.h>
 #include <objc/message.h>
 #include <objc/NSObjCRuntime.h>
@@ -34,7 +35,7 @@ id setupAppDelegate()
     bool didAddProtocol = class_addProtocol(AppDelegateClass, NSApplicationDelegate);
     assert(didAddProtocol);
 
-    SEL selTerminate = sel_registerName("applicationShouldTerminate:");
+    SEL selTerminate = SEL("applicationShouldTerminate:");
     bool didAddMethod = class_addMethod(
         AppDelegateClass,
         selTerminate,
@@ -46,10 +47,10 @@ id setupAppDelegate()
     objc_registerClassPair(AppDelegateClass);
 
     // Create and return an instance
-    SEL allocSel = sel_registerName("alloc");
-    SEL initSel = sel_registerName("init");
-    id delegate = ((id (*)(Class, SEL))objc_msgSend)(AppDelegateClass, allocSel);
-    delegate = ((id (*)(id, SEL))objc_msgSend)(delegate, initSel);
+    SEL allocSel = SEL_ALLOC;
+    SEL initSel = SEL_INIT;
+    id delegate = OBJC_CLASS_CALL_ID(AppDelegateClass, allocSel);
+    delegate = OBJC_CALL_ID(delegate, initSel);
 
     return delegate;
 }
