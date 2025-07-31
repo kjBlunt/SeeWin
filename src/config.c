@@ -103,7 +103,11 @@ void load_config() {
         else if (strcmp(key, "key_favorite") == 0) config.key_favorite = val[0];
         else if (strcmp(key, "key_up") == 0) config.key_up = val[0];
         else if (strcmp(key, "key_down") == 0) config.key_down = val[0];
-        else if (strcmp(key, "key_activate") == 0) config.key_activate = val[0];
+        else if (strcmp(key, "key_activate") == 0) {
+          if (strcmp(val, "\\r") == 0) config.key_activate = '\r';
+          else if (strcmp(val, "\\n") == 0) config.key_activate = '\n';
+          else config.key_activate = val[0];
+        }
         else if (strcmp(key, "key_reload") == 0) config.key_reload = val[0];
     }
 
