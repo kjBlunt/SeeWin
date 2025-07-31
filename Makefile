@@ -7,29 +7,54 @@ SRC := $(wildcard $(SRC_DIR)/*.c)
 BIN := $(DIST_DIR)/SeeWin
 
 CFLAGS := -Wall -Wextra -std=c99 -I$(INCLUDE_DIR) -framework Cocoa -framework Carbon
-
 PREFIX ?= /usr/local
 BINDIR := $(PREFIX)/bin
 INSTALL_NAME := SeeWin
 
+# Output control
+V ?= 0
+ifeq ($(V),1)
+    Q :=
+    ECHO := @true
+else
+    Q := @
+    ECHO := echo
+endif
+
+# Colors
+BOLD := \033[1m
+RESET := \033[0m
+GREEN := \033[32m
+YELLOW := \033[33m
+BLUE := \033[34m
+
 all: $(BIN)
 
 $(BIN): $(SRC) | $(DIST_DIR)
-	clang $(CFLAGS) -o $@ $^
+	$(Q)$(ECHO) "$(BLUE)Compiling $(RESET)$(BOLD)$@$(RESET)"
+	$(Q)clang $(CFLAGS) -o $@ $^ && \
+	$(ECHO) "$(GREEN)✓ Build successful: $(RESET)$@" || \
+  $(ECHO) "$(RED)✗ Build failed$(RESET)"
 
 $(DIST_DIR):
-	mkdir -p $(DIST_DIR)
+	$(Q)mkdir -p $(DIST_DIR)
 
 app: $(BIN)
-	./appify -s $(BIN) -n $(DIST_DIR)/SeeWinApp
+	$(Q)$(ECHO) "$(BLUE)Creating app bundle$(RESET)"
+	$(Q)./appify -s $(BIN) -n $(DIST_DIR)/SeeWinApp
 
 install: $(BIN)
-	install -d $(BINDIR)
-	install -m 755 $(BIN) $(BINDIR)/$(INSTALL_NAME)
+	$(Q)$(ECHO) "$(BLUE)Installing to $(RESET)$(BOLD)$(BINDIR)/$(INSTALL_NAME)$(RESET)"
+	$(Q)install -d $(BINDIR)
+	$(Q)install -m 755 $(BIN) $(BINDIR)/$(INSTALL_NAME) && \
+	$(ECHO) "$(GREEN)✓ Installed successfully to $(RESET)$(BINDIR)/$(INSTALL_NAME)" || \
+  $(ECHO) "$(RED)✗ Install failed$(RESET)"
 
 uninstall:
-	rm -f $(BINDIR)/$(INSTALL_NAME)
+	$(Q)$(ECHO) "$(YELLOW)Uninstalling from $(RESET)$(BINDIR)/$(INSTALL_NAME)"
+	$(Q)rm -f $(BINDIR)/$(INSTALL_NAME)
 
 clean:
-	rm -rf $(DIST_DIR)
+	$(Q)$(ECHO) "$(YELLOW)Cleaning build artifacts$(RESET)"
+	$(Q)rm -rf $(DIST_DIR)
 
