@@ -1,7 +1,7 @@
 ![Status](<https://img.shields.io/badge/Status-it_works_%C2%AF_%5C_%5F_(%E3%83%84)_%5F_/¯-brightgreen>)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)
 ![Language](https://img.shields.io/badge/language-C-blue)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)
 
 # SeeWin
 
@@ -106,7 +106,7 @@ I might work more on this in the future but for now it (mostly) does what I want
 
 ## 📄 License
 
-MIT
+GPL-3.0
 
 ---
 
